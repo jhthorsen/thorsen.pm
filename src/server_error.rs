@@ -10,6 +10,13 @@ pub enum ServerError {
     NotFound(String),
 }
 
+impl From<reqwest::Error> for ServerError {
+    fn from(err: reqwest::Error) -> ServerError {
+        log::error!("type=\"reqwest::Error\" error=\"{:?}\"", err);
+        ServerError::InternalServerError(err.to_string())
+    }
+}
+
 impl From<std::io::Error> for ServerError {
     fn from(err: std::io::Error) -> ServerError {
         log::error!("type=\"std::io::Error\" error=\"{:?}\"", err);

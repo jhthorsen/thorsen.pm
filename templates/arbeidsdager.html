@@ -1,0 +1,92 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+{% set year = now() | date(format="%Y") %}
+<main role="document" class="document-width">
+  <article id="arbeidsdager" hx-select="[role=document]" hx-target="[role=document]">
+    <header>
+      {{ markdown(name = "arbeidsdager/intro.md") | safe }}
+    </header>
+
+    <form method="get" action="/arbeidsdager" hx-boost="true" hx-swap="outerHTML" hx-select="form" hx-target="this">
+      <input name="year" type="hidden" value="{{ year }}">
+      <table>
+        <thead>
+          <tr>
+            <th>&nbsp;</th>
+            <th>Beskrivelse</th>
+            <th>Antall</th>
+            <th>Inkluder</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>&nbsp;</td>
+            <td class="pre"><strong>{{ year }}-01-01</strong> til <input name="to" type="text" value="{{ now() | date(format="%Y-%m-%d") }}"></td>
+            <td class="pre">&mdash; dager</td>
+            <td>&nbsp;</td>
+          </tr>
+          <tr>
+            <td>—</td>
+            <td>Feriedager du har brukt i perioden</td>
+            <td><input name="vacation_taken" type="number" value="0"></td>
+            <td>Ja</td>
+          </tr>
+          <tr>
+            <td>—</td>
+            <td>Lør- og søndager i perioden</td>
+            <td>&mdash; dager</td>
+            <td><input checked="" name="weekends" type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>—</td>
+            <td>Hellig- og høytidsdager i perioden</td>
+            <td>&mdash; dager</td>
+            <td><input checked="" name="holidays" type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>—</td>
+            <td>Feriedager i påsken</td>
+            <td>&mdash; dager</td>
+            <td><input name="easter" type="checkbox"></td>
+          </tr>
+          <tr>
+            <td>—</td>
+            <td>Feriedager i julen</td>
+            <td>&mdash; dager</td>
+            <td><input name="christmas" type="checkbox"></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="working-days">
+            <td>=</td>
+            <td>Arbeidstid i perioden</td>
+            <td class="pre">&mdash; dager</td>
+            <td>&nbsp;</td>
+          </tr>
+          <tr class="working-hours">
+            <td>=</td>
+            <td>Arbeidstid i perioden (7,5t/dag)</td>
+            <td class="pre">&mdash; timer</td>
+            <td>&nbsp;</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p><button class="button">Regn ut</button></p>
+    </form>
+
+    <h2>Helligdager</h2>
+    <table id="holidays-table"
+      hx-get="/arbeidsdager/table/{{ year }}"
+      hx-trigger="load"
+      hx-target="#holidays-table"
+      hx-select="#holidays-table"
+      hx-swap="outerHTML">
+      <tbody>
+        <tr><td>Laster data...</td></tr>
+      </tbody>
+    </table>
+    <blockquote>Dataene over er hentet fra <a href="https://webapi.no/">webapi.no</a>.</blockquote>
+  </article>
+</main>
+{% endblock %}

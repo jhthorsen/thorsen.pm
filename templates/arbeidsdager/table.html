@@ -1,0 +1,16 @@
+<table id="holidays-table">
+  <thead>
+    <tr>
+      <th>Dato</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for date in holidays %}
+      <tr data-kind="{{ date.kind }}">
+        <td class="holiday-date">{{ date.date }}</td>
+        <td class="holiday-description">{{ date.description }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

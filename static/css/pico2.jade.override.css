@@ -45,6 +45,19 @@ article h3 sub {
   display: block;
 }
 
+table {
+  td.pre {
+    white-space: pre;
+  }
+
+  td > input:not([type=checkbox],[type=radio]),
+  td > select,
+  td > textarea {
+    margin: 0 !important;
+    width: auto;
+  }
+}
+
 #header,
 #footer {
   > .document-width {
@@ -94,6 +107,13 @@ article#about > header {
     max-width: 35%;
     margin-left: 1rem;
     margin-top: -0.5rem;
+  }
+}
+
+article#arbeidsdager {
+  [data-kind="saturday"],
+  [data-kind="sunday"] {
+    display: none;
   }
 }
 
