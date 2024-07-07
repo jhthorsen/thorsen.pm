@@ -1,0 +1,31 @@
+
+  <h1>Mojopaste – A #pastebin based on #Mojolicious</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2013-09-05/mojopaste.html">
+      5th of September, 2013
+</a>  </p>
+
+  <pre><code>// From errno.h
+#define EPASTEBINAGAIN 133 /* mojopaste */
+</code></pre>
+<p>Today I released my 13th <a href="https://metacpan.org/release/Mojolicious">Mojolicious</a> based project to CPAN, but the 1st open source Mojolicious based application.</p>
+<p>It feels good.</p>
+<p>The <a href="https://metacpan.org/module/App::mojopaste">application</a> is a pastebin. That is a web application which you can paste text to, hit the “Paste” button and it will save it and generate a unique URL which you can share with other people.</p>
+<p>Yes. A standard pastebin. So why?</p>
+<p>There’s about <a href="https://www.google.com/search?q=pastebin">20 million</a> pastebin search results on Google and there’s about <a href="https://metacpan.org/search?q=pastebin">40</a> pastebin related modules on CPAN, but I don’t think there’s any Mojolicious based. So that’s why I wrote it: <a href="https://metacpan.org/module/App::mojopaste">mojopaste</a> is super easy to install, as long as you have <a href="http://perl.org">perl</a> from this century.</p>
+<pre><code># install using cpanm
+$ curl -L http://cpanmin.us | perl - --sudo App::mojopaste
+
+# run
+$ PASTE_DIR=/path/to/paste/dir mojopaste daemon --listen http://*:8080
+</code></pre>
+<p>Who could be interested?</p>
+<ul>
+<li>Maybe you have the need to run a pastebin internally at work.</li>
+<li>You just fancy having your own pastebin.</li>
+</ul>
+<p>Want to try it out? Check out <a href="http://p.thorsen.pm">mojopaste</a> on my server.</p>
+<p>What about the future: Version 0.04 will look better on the iPhone and will probably have different input names to make it a <em>bit</em> harder for robots to paste. Got other ideas for improvements? Comment below or contact <a href="irc://irc.perl.org/batman">batman</a> @ irc.perl.org. (I’m usually in the <a href="http://irclog.perlgeek.de/mojo/2013-08-13">#mojo</a> channel)</p>
+
+

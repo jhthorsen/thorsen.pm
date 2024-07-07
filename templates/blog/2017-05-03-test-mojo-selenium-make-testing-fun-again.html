@@ -1,0 +1,263 @@
+
+  <h1>Browser testing is hard. Let’s go shopping</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2017-05-03/test-mojo-selenium-make-testing-fun-again.html">
+      3rd of May, 2017
+</a>  </p>
+
+  
+<p>Tonight at the monthly Oslo.pm <a href="https://www.meetup.com/Oslo-pm/events/239533530/">meetup</a>, I gave a talk about how to test your web application in a real browser. This blog entry is a collection of the steps I went through while running live demos showcasing my module <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium">Test::Mojo::Role::Selenium</a>.</p>
+
+
+
+<p>My module uses <a href="https://metacpan.org/pod/Selenium::Remote::Driver">Selenium::Remote::Driver</a> which is a library that communicates with desktop browsers, such as Google Chrome, Firefox or even Internet Explorer. It comes bundled with test modules, but I wanted an interface that looks and feels like Mojolicious’s test module <a href="https://metacpan.org/pod/Test::Mojo">Test::Mojo</a>, since that module really makes testing fun.</p>
+
+
+
+<p>Even if the module is a <a href="https://metacpan.org/pod/Test::Mojo">Test::Mojo</a> role, it is not restricted to the <a href="http://mojolicious.org/">Mojolicious</a> web framework. The module can test any web site, as long as you have a web server running.</p>
+
+
+
+<h2 class="wp-block-heading" id="whydoyouwanttousethismodule">Why do you want to use this module?</h2>
+
+
+
+<p>Testing the HTTP messages for headers and body is great, but as soon as you make something other than an API or very simple web page, you should also test the user experience of the web app. Testing the JavaScript for dynamic web pages is the first that comes to mind, but <a href="https://developers.google.com/web/fundamentals/design-and-ui/responsive/">responsive</a> web pages also need testing, to see how elements are laid out on different screen sizes.</p>
+
+
+
+<p><a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#SYNOPSIS">Test::Mojo::Role::Selenium</a> allows you to write and run user experience tests in the browser of your <a href="https://metacpan.org/pod/Selenium::Remote::Driver#USAGE">selection</a>. The syntax is very simple and it has sane defaults to avoid boilerplate in each test.</p>
+
+
+
+<h2 class="wp-block-heading" id="prerequisites">Prerequisites</h2>
+
+
+
+<p>To get started, you need to install the module and some executables that act as a glue between your test script and the browser of your selection.</p>
+
+
+
+<pre class="wp-block-code"><code># Install the test module
+$ cpanm Test::Mojo::Role::Selenium
+
+# Install Google Chrome, Firefox and PhantomJS drivers
+$ brew install chromedriver
+$ brew install geckodriver
+$ brew install phantomjs
+
+# Install the Selenium driver (requires jdk8)
+# brew install selenium-server-standalone
+</code></pre>
+
+
+
+<p>There are probably similar packages for your favorite operating system. The <code>brew</code> commands above are simply a cheat sheet for the presentation.</p>
+
+
+
+<p>While preparing this article I wanted to get the demos running with Firefox, but I was not able to get the <a href="https://metacpan.org/pod/Selenium::Firefox">Selenium::Firefox</a> module to work together with the <code>geckodriver</code> executable. Seems like the integration between <code>firefox</code> and <code>geckodriver</code> are under heavy development. Please let me know in the comments area below if I’m wrong. I did however manage to get Firefox running using the <code>selenium-server</code>. (I had to install Java though…)</p>
+
+
+
+<p>You can change between the different backends using the <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#MOJO_SELENIUM_DRIVER">MOJO_SELENIUM_DRIVER</a>. environment variable. Note that <a href="https://metacpan.org/pod/Selenium::Chrome">Selenium::Chrome</a> and <a href="https://metacpan.org/pod/Selenium::Firefox">Selenium::Firefox</a> will start and stop the browser together with the test script, while <a href="https://metacpan.org/pod/Selenium::Remote::Driver">Selenium::Remote::Driver</a> (which uses <code>selenium-server</code>) require an external Selenium service to run.</p>
+
+
+
+<h2 class="wp-block-heading" id="testingagainstalivewebserver">Testing against a live web server</h2>
+
+
+
+<p>The first demo was to show that you can use the module to test any web site. The test <a href="#tmojolicioust">mojolicious.t</a> connects to <a href="http://mojolicious.org/">mojolicious.org</a>, checks for certain elements and fills in the search form, runs some JavaScript commands and then checks if the search result page was loaded.</p>
+
+
+
+<p>Here are the commands I went through to run the demo:</p>
+
+
+
+<pre class="wp-block-code"><code>$ mkdir -p test-selenium/t
+$ cd test-selenium
+$ vim t/mojolicious.t
+# copy/paste from t/mojolicious.t below
+
+# Test with Google chrome
+$ TEST_SELENIUM=http://mojolicious.org prove -vl t/mojolicious.t
+
+# Test with Firefox
+$ MOJO_SELENIUM_DRIVER=Selenium::Firefox \
+  TEST_SELENIUM=http://mojolicious.org \
+  prove -vl t/mojolicious.t
+
+# or...
+$ MOJO_SELENIUM_DRIVER=Selenium::Remote::Driver \
+  TEST_SELENIUM=http://mojolicious.org \
+  prove -vl t/mojolicious.t
+</code></pre>
+
+
+
+<p>The commands above should run the test script in various browser and result in a successful test run. Note that the environment variable <code>TEST_SELENIUM</code> need to be set, or the tests will be skipped. The reason for this is that I think in most cases the Selenium tests should not be run when installing a cpan module, nor being run on services such as <a href="https://travis-ci.org/">Travis CI</a>.</p>
+
+
+
+<h2 class="wp-block-heading" id="testingagainstalocalmojoliciousapplication">Testing against a local Mojolicious application</h2>
+
+
+
+<p>The next demo, <a href="#tinternalt">internal.t</a>, run tests agains a Mojolicious application. Using a Mojo app gives you some more features: In addition to test what is shown inside the browser, you can test headers and other “hidden” information that is exchanged over the HTTP protocol.</p>
+
+
+
+<pre class="wp-block-code"><code>$ vim t/internal.t
+# copy/paste from t/internal.t below
+
+# Test with PhantomJS
+$ TEST_SELENIUM=1 prove -vl t/internal.t
+</code></pre>
+
+
+
+<p>Since the test script does not set <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#MOJO_SELENIUM_DRIVER">MOJO_SELENIUM_DRIVER</a>, it will use the default browser which is the headless browser <a href="http://phantomjs.org/">PhantomJS</a>. This browser is quite fast to start up, but might miss some features that is only available in Chrome, Firefox or Internet Explorer.</p>
+
+
+
+<p>The headless version also takes screenshots which are saved to the operating system’s temp directory. This can be changed by specifying <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#screenshot_directory">screenshot_directory</a>.</p>
+
+
+
+<h2 class="wp-block-heading" id="amorecomplexreallifeexample">A more complex real life example</h2>
+
+
+
+<p>The last demo was to look at some tests for the <a href="https://convos.by/">Convos</a> chat web application. The web app is a Mojolicious server that allows you to be persistently conected to IRC servers and communicate with other IRC users through your web browser. The frontend is powered by Vuejs, which is a reactive JavaScript library that can only be tested through the web browser.</p>
+
+
+
+<p>The <a href="https://github.com/Nordaaker/convos/tree/master/t">test suite</a> feature many browser tests, (Look for the tests starting with <code>selenium-</code>) but the two tests that was demoed was <code>selenium-url.t</code> and <code>selenium-register.t</code>.</p>
+
+
+
+<h3 class="wp-block-heading" id="selenium-url.t">selenium-url.t</h3>
+
+
+
+<p><a href="https://github.com/Nordaaker/convos/blob/master/t/selenium-url.t">selenium-url.t</a> simply tests the URL library <a href="https://github.com/Nordaaker/convos/blob/master/assets/js/url.js">url.js</a> which is a URL parser and generator.</p>
+
+
+
+<p>It does that by calling <code>$t-&gt;driver-&gt;execute_script(...)</code> which is a <a href="https://metacpan.org/pod/Selenium::Remote::Driver#execute_script">Selenium::Remote::Driver</a> method for running JavaScript code inside the browser. The result from the method is then tested with normal <a href="https://metacpan.org/pod/Test::More">Test::More</a> functions.</p>
+
+
+
+<h3 class="wp-block-heading" id="selenium-register.t">selenium-register.t</h3>
+
+
+
+<p><a href="https://github.com/Nordaaker/convos/blob/master/t/selenium-register.t">selenium-register.t</a> is a bit more complicated test that uses more features from <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium">Test::Mojo::Role::Selenium</a>.</p>
+
+
+
+<p>It uses <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#wait_for">wait_for</a> to wait for elements that are injected dynamically to the document. <code>wait_for()</code> is a simple version of the more complex <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#wait_until">wait_until</a> method that runs a function until the function returns a true value or a timeout runs out.</p>
+
+
+
+<h2 class="wp-block-heading" id="theend">The end</h2>
+
+
+
+<p>I hope this introduction gave you an idea of what <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium">Test::Mojo::Role::Selenium</a> can do, and makes testing fun again.</p>
+
+
+
+<h2 class="wp-block-heading" id="resources">Resources</h2>
+
+
+
+<h3 class="wp-block-heading" id="links">Links</h3>
+
+
+
+<ul><li><a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium">Test::Mojo::Role::Selenium</a>: API documentation.</li><li><a href="https://metacpan.org/pod/Selenium::Remote::Driver">Selenium::Remote::Driver</a>: Holds information about what you can do with <a href="https://metacpan.org/pod/Test::Mojo::Role::Selenium#driver">the driver</a>.</li><li><a href="https://metacpan.org/pod/Selenium::Remote::WebElement">Selenium::Remote::WebElement</a>: Holds information about what you can do with an element.</li><li><a href="https://metacpan.org/pod/Selenium::Remote::WDKeys">Selenium::Remote::WDKeys</a>: Check the source code for actual keys you can send to html elements.</li></ul>
+
+
+
+<h3 class="wp-block-heading" id="tmojolicious.t">t/mojolicious.t</h3>
+
+
+
+<pre class="wp-block-code"><code>use Mojo::Base -strict;
+use Test::Mojo::WithRoles &quot;Selenium&quot;;
+use Test::More;
+
+$ENV{MOJO_SELENIUM_DRIVER} ||= &#39;Selenium::Chrome&#39;;
+
+my $t = Test::Mojo::WithRoles-&gt;new-&gt;setup_or_skip_all;
+
+$t-&gt;set_window_size([1024, 768]);
+
+$t-&gt;navigate_ok(&#39;/perldoc&#39;);
+$t-&gt;current_url_is(&quot;http://mojolicious.org/perldoc&quot;);
+$t-&gt;live_text_is(&#39;a[href=&quot;#GUIDES&quot;]&#39; =&gt; &#39;GUIDES&#39;);
+
+$t-&gt;driver-&gt;execute_script(qq[document.querySelector(&quot;form&quot;).removeAttribute(&quot;target&quot;)]);
+$t-&gt;element_is_displayed(&quot;input[name=q]&quot;)
+  -&gt;send_keys_ok(&quot;input[name=q]&quot;, [&quot;render&quot;, \&quot;return&quot;]);
+
+$t-&gt;wait_until(sub { $_-&gt;get_current_url =~ qr{q=render} });
+$t-&gt;live_value_is(&quot;input[name=search]&quot;, &quot;render&quot;);
+
+done_testing;
+</code></pre>
+
+
+
+<h3 class="wp-block-heading" id="tinternal.t">t/internal.t</h3>
+
+
+
+<pre class="wp-block-code"><code>use Mojo::Base -strict;
+use Test::Mojo::WithRoles &quot;Selenium&quot;;
+use Test::More;
+
+use Mojolicious::Lite;
+get &quot;/home&quot; =&gt; &quot;index&quot;;
+
+my $t = Test::Mojo::WithRoles-&gt;new-&gt;setup_or_skip_all;
+
+$t-&gt;navigate_ok(&quot;/home&quot;)
+  -&gt;status_is(200)
+  -&gt;capture_screenshot
+  -&gt;header_is(&quot;Server&quot; =&gt; &quot;Mojolicious (Perl)&quot;)
+  -&gt;text_is(&quot;p&quot; =&gt; &quot;Hello!&quot;)
+  -&gt;live_text_is(&quot;p&quot; =&gt; &quot;Hello!&quot;)
+  -&gt;element_is_displayed(&quot;input&quot;)
+  -&gt;active_element_is(&quot;input[name=test]&quot;)
+  -&gt;send_keys_ok(&quot;input[name=test]&quot;, [&quot;Yikes&quot;, \&quot;enter&quot;]);
+
+$t-&gt;current_url_like(qr{/home\?test=Yikes})
+  -&gt;status_is(200)
+  -&gt;capture_screenshot
+  -&gt;live_element_exists(&quot;input[name=test][value=Yikes]&quot;);
+
+done_testing;
+
+__DATA__
+@@ index.html.ep
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Test&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;p&gt;Hello!&lt;/p&gt;
+  %= form_for &quot;index&quot;, begin
+    %= text_field &#39;test&#39;, autofocus =&gt; 1
+    %= submit_button
+  % end
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+
+

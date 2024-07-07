@@ -1,0 +1,164 @@
+
+  <h1>@swaggerapi and #Mojolicious – How to validate your input/output with a schema</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2015-07-05/mojolicious-swagger2.html">
+      5th of July, 2015
+</a>  </p>
+
+  <h2 id="outdated">OUTDATED</h2>
+<p><strong>This blog post is outdated. You might want to check out <a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">A RESTful API with OpenAPI</a> instead.</strong></p>
+<hr>
+<p><a href="http://mojolicious.org">Mojolicious</a> is an awesome web framework which allow you concentrate on the business logic, while the rest Just Works ™.</p>
+<p><a href="http://swagger.io/">Swagger</a> is “The World’s Most Popular Framework for APIs”. Swagger is a language for specifying the input and output to your HTTP API. (REST- or RPC API, if you like). The API rules are based on top of the <a href="http://json-schema.org/documentation.html">JSON schema</a> rules, but extends beyond basic data validation and allows you to define a complete API spec.</p>
+<p><a href="https://metacpan.org/pod/Mojolicious::Plugin::Swagger2">Mojolicious::Plugin::Swagger2</a> is a plugin for Mojolicious which ties the web framework together with the API specification and automatically builds input/output validation rules.</p>
+<p>This tutorial show how to build a working blog app, based on <a href="https://twitter.com/kraih">kraih</a>‘s <a href="https://github.com/kraih/mojo-pg/tree/master/examples/blog">Mojo::Pg blog example</a>.</p>
+<h2 id="whyyouwanttouseswagger">Why you want to use swagger</h2>
+<p>This question comes up quite often after telling people about Swagger: “but…why??” The people asking this often come from the same background as myself, where you both write the producer (backend web server) and consumer (javascript, …) code. When you’re in complete control of both sides you don’t really need to write any formal specification or document your API, since you already <em>know</em> how it works. This can be very true – at least if you make sure you have tests of all your endpoints.</p>
+<p>Personally I’m a <a href="http://www.linkognito.com/images/05-08-08/metal.gif">huge fan</a> of documenting as well as testing. I often say that if you can’t document (describe) the API/method/whatever, something is wrong and you should reconsider what you’re coding. Documenting an API on the other hand is awful IMO, especially during rapid prototyping/developing where it’s hard to keep the code and documentation up to date.</p>
+<p>So how does <a href="https://metacpan.org/pod/Mojolicious::Plugin::Swagger2">swagger</a> fix this? Since the input/ouput Perl code is generated <em>from</em> the swagger document, you know that the backend is always running code accordingly to the specification. Also, since the documentation you generate is not hand written, but generated from the same swagger document you can know that the code the server is running is in sync with the documentation.</p>
+<p>When “generated code” is mentioned, it’s not just the routing, but also input and output validation. This means that when any data has made it through to your controller action, you know that the data is valid. On the other side, the consumer (let’s say a javascript that cares about the difference between an integer and string) will know that it has received the correct data, since invalid output will result in a <a href="https://en.wikipedia.org/wiki/List_of_HTTP_status_codes#5xx_Server_Error">500</a>.</p>
+<p>So… If you don’t care about documenation or collaberation with others, then I’m not sure if I would care much about swagger either.</p>
+<p>Note that the swagger spec is not just for the server, but can also be used to generate <a href="int://github.com/swagger-api/swagger-js">javascript</a> and <a href="https://metacpan.org/pod/Swagger2::Client">perl client side</a> code.</p>
+<h2 id="swaggerspecification">Swagger specification</h2>
+<p>This first thing you need to do is to design you API. I’m not going into the test-driven-, design-driven- or whatever-driven-development discussion, but for this to work you need to design you API. The reason for this is that the design/documentation process will define the rules which again generates in-memory Perl code used to validate the input/output of your Mojolicious application.</p>
+<p><a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">This specification</a> is written in JSON, but you can use YAML instead if you have a <a href="https://metacpan.org/pod/YAML::XS">YAML parser</a> installed.</p>
+<p>If you’re new to the whole Swagger concept, I suggest start looking at the resources under “<a href="#see-also">See also</a>“.</p>
+<p>There’s a lot of details in the specification, which is better exaplained in the <a href="http://swagger.io/specification/">official documentation</a> but there are some important parts worth mentioning:</p>
+<ul>
+<li>
+<p><code>schemes</code> are ignored by the code generator. This means that even though your specification says “https”, the API can still be served over plain http if that is what the server is accepting. Have a look at <a href="https://metacpan.org/pod/distribution/Mojolicious/lib/Mojolicious/Guides/Cookbook.pod#DEPLOYMENT">DEPLOYMENT</a> on how to set up a secure server with TLS.</p>
+</li>
+<li>
+<p>All the <code>paths</code> are mounted under <code>basePath</code> in the specification.</p>
+</li>
+<li>
+<p><code>x-mojo-controller</code> is special attribute under each HTTP method which tells <code>Mojolicious::Plugin::Swagger2</code> which controller to dispatch the incoming request to.</p>
+</li>
+<li>
+<p><code>operationId</code> is used to find the method in the <code>x-mojo-controller</code> controller. Any camel-case operationId will be normalized. Example:</p>
+<pre><code>.----------------------------------.
+| Operation Id | Controller method |
+|--------------|-------------------|
+| userLogin    | user_login        |
+| UserLogin    | user_login        |
+| user_login   | user_login        |
+&#39;----------------------------------&#39;
+</code></pre>
+</li>
+</ul>
+<h2 id="theapplication">The application</h2>
+<p>The example application is a fully working <a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">blog</a>, with a <a href="http://www.postgresql.org/">PostgreSQL</a> backend.</p>
+<p>If you have a PostgreSQL server running and Mojolicious installed, you can start the application with these simple steps:</p>
+<pre><code>$ git clone https://github.com/jhthorsen/swagger2.git
+$ cd swagger2/t/blog/
+$ BLOG_PG_URL=postgresql://postgres@/test perl script/blog daemon
+</code></pre>
+<p>To see all the routes generated, you can run:</p>
+<pre><code>$ BLOG_PG_URL=postgresql://postgres@/test perl script/blog routes
+/api
+  +/posts        GET     &quot;index&quot;
+  +/posts        POST    &quot;store&quot;
+  +/posts/(:id)  PUT     &quot;update&quot;
+  +/posts/(:id)  GET     &quot;show&quot;
+  +/posts/(:id)  DELETE  &quot;remove&quot;
+...
+</code></pre>
+<p>In addition to the manually added routes, Mojolicious::Plugin::Swagger2 has added five more routes, which are automatically generated from the <a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">API spec</a>.</p>
+<p>The generated routes differ from the standard routes, since they point to a generated callback where the input and output validation is done. This means that when a request hit <code>http://example.com/api/posts/42</code>, it will go through these steps:</p>
+<ol>
+<li>Check input against the swagger spec. Render a 400 error document if input validation fail.</li>
+<li>Call the <a href="https://metacpan.org/pod/Mojolicious::Plugin::Swagger2#Controller">method</a> (operationId) in the specified <code>x-mojo-controller</code>, but with two extra parameters: <code>$args</code> and <code>$cb</code>. <code>$args</code> is the validated input, and <code>$cb</code> is a callback used to pass the response back to the user agent.</li>
+<li>Verify the response passed to <code>$cb</code> against the swagger spec. Render a 500 error document if the output validation fail.</li>
+</ol>
+<p>These steps make sure that the input/output of your application will always follow the specification.</p>
+<p>Below is an <a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">example action</a> which will be called when a “GET” request with the path part “/api/posts/42” hit your application:</p>
+<pre><code>package Blog::Controller::Posts; # &quot;x-mojo-controller&quot;
+
+sub show { # &quot;operationId&quot;
+
+  # This method is called with $args and $cb,
+  # in addition to the controller object ($self)
+  my ($self, $args, $cb) = @_;
+
+  # Find post with id 42 (from the request URL)
+  my $entry = $self-&gt;posts-&gt;find($args-&gt;{id});
+
+  # Serialize the blog post as JSON if found
+  return $self-&gt;$cb($entry, 200) if $entry;
+
+  # Render a 404 error document if blog post was not found
+  return $self-&gt;$cb({errors =&gt; [{message =&gt; &#39;Blog post not found.&#39;, path =&gt; &#39;/id&#39;}]}, 404);
+}
+</code></pre>
+<p><code>$args</code> above will only contain “id”, since that is the only parameter specified for this resource. The response passed on to <code>$cb</code> need to match either the “200” or “default” response in the API spec.</p>
+<p>Note that the “default” response defined in the <a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">specification</a> match the default error generated by <a href="https://metacpan.org/pod/Mojolicious::Plugin::Swagger2#render_swagger">Mojolicious::Plugin::Swagger2</a>.</p>
+<h2 id="authentication">Authentication</h2>
+<p>It’s possible to specify a <a href="https://metacpan.org/pod/Mojolicious::Plugin::Swagger2#Protected-API">custom route</a> which does authentication:</p>
+<pre><code>$app-&gt;plugin(swagger2 =&gt; {
+  url   =&gt; &quot;...&quot;,
+  route =&gt; $app-&gt;routes-&gt;under-&gt;to(cb =&gt; sub {
+    my $c = shift;
+
+    # Authenticated
+    return 1 if $c-&gt;param(&#39;secret&#39;);
+
+    # Not authenticated
+    $c-&gt;render(
+      status =&gt; 401,
+      json   =&gt; {
+        errors =&gt; [{message =&gt; &#39;Not authenticated&#39;, path =&gt; &#39;/&#39;}]
+      }
+    );
+    return;
+  });
+});
+</code></pre>
+<h2 id="mojoliciouscommands">Mojolicious commands</h2>
+<p>The <a href="https://metacpan.org/release/Swagger2">Swagger2 distribution</a> comes with a Mojolicious <a href="https://metacpan.org/pod/Mojolicious::Command::swagger2">command extension</a> which gives you these command line tools:</p>
+<pre><code>$ mojo swagger2 client path/to/spec.json &lt;method&gt; [args]
+$ mojo swagger2 edit
+$ mojo swagger2 edit path/to/spec.json --listen http://*:5000
+$ mojo swagger2 pod path/to/spec.json
+$ mojo swagger2 perldoc path/to/spec.json
+$ mojo swagger2 validate path/to/spec.json
+</code></pre>
+<h3 id="mojoswagger2client">mojo swagger2 client</h3>
+<p>The “client” command generates a <a href="https://metacpan.org/pod/Swagger2::Client">swagger client</a> and calls the swagger ready server. The input specification file need to have <code>host</code>, <code>basePath</code> and <code>schemes</code> defined for the client to just work.</p>
+<p>Example usage:</p>
+<pre><code>$ mojo swagger2 client \
+  https://raw.githubusercontent.com/jhthorsen/swagger2/master/t/blog/api.json \
+  show id=42
+</code></pre>
+<h3 id="mojoswagger2edit">mojo swagger2 edit</h3>
+<p>The “edit” command starts a Mojolicious server where you can edit and read the swagger specification in your browser. The browser component uses localStorage, which automatically saves your changes locally even if your browser crash.</p>
+<p>Example usage:</p>
+<pre><code>$ mojo swagger2 edit \
+  https://raw.githubusercontent.com/jhthorsen/swagger2/master/t/blog/api.json
+</code></pre>
+<p>And then visit <a href="http://localhost:3000/">http://localhost:3000/</a> in your browser.</p>
+<h3 id="mojoswagger2pod">mojo swagger2 pod</h3>
+<p>You can generate pod and read the specification as perldoc. This again enables such thing as swagger-to-pdf:</p>
+<pre><code>$ sudo apt-get install pod2pdf
+$ mojo swagger2 pod t/blog/api.json &gt; blog.pod
+$ pod2pdf blog.pod &gt; blog.pdf
+</code></pre>
+<p>Just to read the documentation:</p>
+<pre><code>$ mojo swagger2 perldoc t/blog/api.json
+</code></pre>
+<h3 id="mojoswagger2validate">mojo swagger2 validate</h3>
+<p>The last command can be used to validate that the API spec against the swagger specification:</p>
+<pre><code>$ mojo swagger2 validate t/blog/api.json
+</code></pre>
+<h2 id="theend">The end</h2>
+<p>This tutorial should give you a simple understanding on how to add input and output validation to your application, based on a Swagger spec.</p>
+<p>Got questions or feedback? Contact me on <a href="http://twitter.com/jhthorsen">twitter</a>, join the IRC channel #swagger on irc.perl.org. or drop me an <a href="mailto:jhthorsen@cpan.org">email</a>.</p>
+<h2 id="seealso">See also</h2>
+<ul>
+<li><a href="https://mojolicious.io/blog/2017/12/22/day-22-how-to-build-a-public-rest-api/">A RESTful API with OpenAPI</a></li>
+<li><a href="http://swagger.io/">Swagger webpage</a></li>
+<li><a href="http://swagger.io/getting-started/">Swagger overview</a></li>
+<li><a href="http://swagger.io/specification/">Swagger2 specification</a></li>
+</ul>
+
+

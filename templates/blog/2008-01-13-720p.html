@@ -1,0 +1,79 @@
+
+  <h1>Fixed overscan</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2008-01-13/720p.html">
+      13th of January, 2008
+</a>  </p>
+
+  <p>I’ve been googling for quite som time now, and finally I found settings that works for my 720p DFP.</p>
+<p>I don’t think the specs are important, but I’ll list them anyway:</p>
+<ul>
+<li>Ubuntu 7.10</li>
+<li>xserver-xorg 7.2</li>
+<li>nvidia-glx 1.0.9639</li>
+<li>Plasma TV 720p / 1080i</li>
+</ul>
+<h2 id="xorg.conf">xorg.conf</h2>
+<pre><code>Section &quot;Monitor&quot;
+    Identifier  &quot;Generic Monitor&quot;
+    ModeLine    &quot;720p&quot;          74.5   1216 1272 1400 1664  684  685  688  746 -hsync +vsync
+   #ModeLine    &quot;overscan&quot;      61.8   1280 1390 1430 1648  720  725  730  750 +hsynv +vsync
+   #ModeLine    &quot;1152x672&quot;      74.25  1152 1326 1366 1650  672  701  706  750 +hsync +vsync
+   #ModeLine    &quot;720p&quot;          73.825 1280 1320 1368 1640  720  722  724  751 +hsync +vsync
+   #Modeline    &quot;1208x679&quot;      74.25  1208 1353 1393 1650  679  707  712  750 +hsync +vsync
+   #Modeline    &quot;1840x1016&quot;    148.5   1840 1966 2004 2206 1016 1052 1057 1125 +hsync +vsync
+   #ModeLine    &quot;1840x1016@60&quot; 148.5   1840 1966 2004 2206 1016 1052 1057 1125 +hsync +vsync
+   #ModeLine    &quot;1280x720@60&quot;   74.5   1280 1336 1472 1664  720  721  724  746 -hsync +vsync
+   #ModeLine    &quot;800x600@60&quot;    40.0    800  840  968 1056  600  601  605  628 +hsync +vsync
+   #DisplaySize 320 180
+EndSection
+
+Section &quot;Screen&quot;
+    Identifier  &quot;Default Screen&quot;
+    Device      &quot;NVIDIA&quot;
+    Monitor     &quot;Generic Monitor&quot;
+    Option      &quot;NoLogo&quot;                &quot;true&quot;
+    Option      &quot;BackingStore&quot;          &quot;true&quot;
+    Option      &quot;RenderAccel&quot;           &quot;true&quot;
+    Option      &quot;RandRRotation&quot;         &quot;true&quot;
+    Option      &quot;AllowDDCCI&quot;            &quot;true&quot;
+    Option      &quot;HWCursor&quot;              &quot;true&quot;
+    Option      &quot;NoBandWidthTest&quot;       &quot;true&quot;
+    Option      &quot;NoPowerConnectorTest&quot;  &quot;true&quot;
+    Option      &quot;AllowGLXWithComposite&quot; &quot;true&quot;
+    Option      &quot;AddARGBGLXVisuals&quot;     &quot;true&quot;
+    Option      &quot;ExactModeTimeingsDVI&quot;  &quot;true&quot;
+   #Option      &quot;DPI&quot;                   &quot;100x100&quot;
+    Option      &quot;ModeValidation&quot;        &quot;AllowNon60HzDFPModes, NoMaxPClkCheck,
+                                         AllowInterlacedModes, NoMaxSizeCheck,
+                                         NoVirtualSizeCheck,   NoVesaModes,
+                                         NoDFPNativeResolutionCheck&quot;
+    Option      &quot;FlatPanelProperties&quot;   &quot;Scaling = centered, Dithering = enabled&quot;
+    Defaultdepth 24
+    SubSection &quot;Display&quot;
+        Depth 24
+        Modes &quot;720p&quot;
+    EndSubSection
+EndSection
+</code></pre>
+<h2 id="comments">Comments</h2>
+<dl>
+<dt>ModeLine “720p”</dt>
+<dd>This is the modeline that works for me. I’ve commented out the other modelines that not work.</dd>
+<dt>Option ModeValidation</dt>
+<dd>Not quite sure if all of these params are nescessarly, but I guess the most important param is “NoDFPNativeResolutionCheck”.</dd>
+<dt>Option FlatPanelProperties</dt>
+<dd>“Scaling = centered” makes the resolution from the modeline centered, instead of stretched. This is really important, since it will not help no matter which resolution you use, if it gets stretched.</dd>
+<dt>Modes 720p</dt>
+<dd>Here I force xorg to use the modeline I defined earlier, instead of using nvidia’s auto-detected resolutions.</dd>
+<dt>Option DPI</dt>
+<dd>I’ve commented this one out, but you might need to set it manually if xorg does some strange calculations. DisplaySize might also help you out.</dd>
+</dl>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="http://ubuntuforums.org/archive/index.php/t-164474.html">ubuntuforums.org – “Xorg + KDE + NVIDIA + Sony SXRD XBR1 TV”</a></li>
+<li><a href="http://download.nvidia.com/XFree86/Linux-x86/1.0-9639/README/README.txt">Nvidia.com – README.txt</a></li>
+</ul>
+
+

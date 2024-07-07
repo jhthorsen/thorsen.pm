@@ -1,0 +1,38 @@
+
+  <h1>CatalystX::Controller::Sugar</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2009-09-10/catalyst-controller-sugar.html">
+      10th of September, 2009
+</a>  </p>
+
+  <p>I’ve written a module I think is rather useful: <a href="http://search.cpan.org/perldoc?CatalystX::Controller::Sugar">CatalystX::Controller::Sugar</a>. This module (will hopefully) make chained actions be your default when writing a controller in <a href="http://search.cpan.org/perldoc?Catalyst::Runtime">Catalyst</a>. I remember when I first started looking at Catalyst – I didn’t see the reason for doing chained actions, and I certainly didn’t understand how they worked. I still think it’s a pain to set it up, but hopefully it’s a bit easier using the sugar module.</p>
+<p>In addition to sugar for chains, it exports some other functions, which I use most the time. This is something I think is a pain:</p>
+<pre><code># 139 characters
+sub foo :Chain(&#39;/&#39;) PathPart(&#39;&#39;) CaptureArgs(0) {
+  my $self = shift;
+  my $c = shift;
+  $c-&gt;stash-&gt;{&#39;answer_to_everything&#39;} = 42;
+}
+</code></pre>
+<p>…which can be written this way, with sugar:</p>
+<pre><code># 53 characters
+chain sub {
+    stash answer_to_everything =&gt; 42;
+};
+</code></pre>
+<p>I hardly ever use <code>$self</code>, but I wery often use <code>stash()</code>, <code>session()</code> and <code>forward()</code> so that’s why I’ve chosen to export those functions (among some others). The module is also quite simple to use:</p>
+<pre><code>use CatalystX::Controller::Sugar;
+# your controller code
+1;
+</code></pre>
+<p>…instead of:</p>
+<pre><code>use CatalystX::Controller;
+use Moose;
+BEGIN { extends &#39;Catalyst::Controller&#39; }
+# your controller code
+1;
+</code></pre>
+<p>Does my pod suck? Is the module not flexible enough? Let me know.</p>
+
+

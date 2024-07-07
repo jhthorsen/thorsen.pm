@@ -1,0 +1,17 @@
+
+  <h1>Line noise: parentheses</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2009-06-01/line-noise-parentheses.html">
+      1st of June, 2009
+</a>  </p>
+
+  <p>I’ve been discussing how bad perl code looks and I’m a bit surprised: I consider () more noisy than $, %, @ and friends, while the people I discuss this with, really likes parentheses. Consider this:</p>
+<pre><code>push(@text, sprintf(&#39;I got %i foos&#39;, int(shift(@{ $obj-&gt;get_foo() }))));
+</code></pre>
+<p>Versus:</p>
+<pre><code>push @text, sprintf &#39;I got %i foos&#39;, int shift @{ $obj-&gt;get_foo };
+</code></pre>
+<p>I don’t understand how the first one is less noisy than the second (!). I also don’t understand how you can maintain or read the first one.</p>
+
+

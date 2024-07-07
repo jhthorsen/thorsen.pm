@@ -1,0 +1,81 @@
+
+  <h1>Rewriting Mojolicious::Plugin::AssetPack</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2016-02-21/rewriting-assetpack-plugin.html">
+      21th of February, 2016
+</a>  </p>
+
+  <p>Update: I suggest checking out <a href="https://metacpan.org/pod/Mojolicious::Plugin::Webpack">Mojolicious::Plugin::Webpack</a> instead.</p>
+<hr>
+<p><a href="https://metacpan.org/release/Mojolicious-Plugin-AssetPack">AssetPack</a> is a <a href="http://mojolicious.org">Mojolicious</a> plugin which helps you process CSS and JavaScript assets. It can convert other formats, such as SASS, Less, CoffeScript (and many more) into a format the browser understands. This makes the development process a lot smoother. AssetPack also makes sure the assets are minified and bundled into a single file in production. This saves bandwidth and round-trip time to the server, which again helps the browser to render the page faster.</p>
+<p>This article is about proposed AssetPack changes and why. I would appreciate <a href="mailto:jhthorsen@cpan.org">feedback</a> from existing users, so if you are an existing AssetPack user and think the changes are bad, then please don’t hesitate to contact me.</p>
+<h2 id="currentversion">Current version</h2>
+<p>AssetPack started out as something very simple: Just a single module with some code blocks that would process the assets: The code blocks took a reference to a scalar holding the content of the asset and allowed any modification to that text. After all the registered code blocks were done, AssetPack would write the final asset to the public folder, which Mojolicious could serve.</p>
+<p>The code blocks worked for a while, but did not scale very well. The number of <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/0.69/lib/Mojolicious/Plugin/AssetPack/Preprocessor">pre-processors</a> grew and made the module very clunky to work with.</p>
+<p>I then decided to move the callbacks to a new “<a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/0.23/lib/Mojolicious/Plugin/AssetPack/Preprocessors.pm">Preprocessors</a>” module, which made the code a bit easier to read. Unfortunately, this module lived on, even after I decided to split each pre-processor into separate classes. This design decision made each of the pre-processor objects impossible to access from the main AssetPack plugin. This means that you cannot customize a pre-processor after it has been added.</p>
+<p>Another thing that makes AssetPack difficult to work with is how it figures out what to name the output asset files: The simple way to describe the logic is that it takes all the content of the input files and calculates an MD5 of the content, and uses that string as part of the name. (Example: “myapp-d3b07384d113edec49eaa6238ad5ff00.css”). If this file exists, it will skip the processing step, and simply use the existing file. For some unexplained reason, AssetPack sometimes calculates the checksum based on the wrong input files. I’ve still not completely understood why this happens, but it happens in some rare cases when you depend on assets automatically downloaded from the web.</p>
+<p>Apart from the drawbacks mentioned above, it works very well: It supports a variety of input file formats: It can process vanilla CSS, JavaScript, CoffeScript, Less, Sass and it can even generate <a href="https://css-tricks.com/css-sprites/">CSS sprites</a>. I intend to support most of this functionality in the next version, but support for processing Facebook’s React support will be <a href="#facebooks-react">removed</a>.</p>
+<h2 id="nextversion">Next version</h2>
+<p>Why the rewrite? I wanted to make AssetPack simple and understandable again. The module has grown into something that is very difficult to maintain and extend. The new design enables most of the core functionality to be overridden in a very simple way. This makes AssetPack more flexible for end users.</p>
+<h3 id="overalldesign">Overall design</h3>
+<p>The plugin code is very thin in the new version: Most of the code that used to be core is now moved to the “<a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Store.pm">store</a>“. The “store” is an object that can persist assets and serve them to the browser.</p>
+<p>All the <code>Preprocessor::</code> classes have been converted to <code>Pipe::</code> classes with a new and more simple API: There’s just one method (<code>process()</code>) that receives a list of input assets for a <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Guides/Tutorial.pod#process-assets">topic</a>. This means that a “pipe” can change the list in any way it likes: It can collapse it into one element, add more elements or change just parts of the assets. One special example of this is the <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Pipe/Combine.pm">Combine</a></p>
+<h3 id="assetbaseurl">Asset base URL</h3>
+<p>The <code>base_url</code> attribute in the existing version has been replaced with a <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/v2#route">route</a> attribute. This route defaults to dispatching to a callback which will render the requested assets. This introduces much more flexibility: You can change the path part completely and/or the <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Guides/Cookbook.pod#assets-from-custom-domain">scheme/host/port</a>. A custom route also makes it possible to protect your assets with authentication if you like.</p>
+<h3 id="headers">Headers</h3>
+<p>You can still customize response headers: <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/0.69/lib/Mojolicious/Plugin/AssetPack#headers">headers</a> is moved to the <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/v2#store">store</a> as “default_headers”, and it has smart defaults: “Cache-Control” is set to “max-age=31536000”. This is in addition to the standard “ETag” and “Last-Modified”, which is already set by <a href="https://metacpan.org/pod/Mojolicious::Static">Mojolicious::Static</a>.</p>
+<h3 id="assetoutputdirectory">Asset output directory</h3>
+<p>Figuring out where to store assets was quite painful in the previous version, and I still don’t think it’s done right. That’s why there’s no <code>out_dir</code> in the new version. Instead there’s automatic decision making to save assets to memory, <code>TMP_DIR</code>, or as an actual file while developing. The output files are not stored in the “public” directory though, so they can’t be accessed from the static renderer directly.</p>
+<h3 id="purgingprocessedassets">Purging processed assets</h3>
+<p><code>purge()</code> was added to clean up unused processed files. This was useful since a development process could create hundreds of files in the “public/packed” directory. In the new version, there’s simply no need for <code>purge()</code> since the checksum in the generated filenames does not change as much as it used to: The checksum is calculated from the input filenames/locations, instead of the content of the input assets. (See <a href="#guessing-output-filenames">Guessing output filenames</a> if you worry about caching.)</p>
+<h3 id="guessingoutputfilenames">Guessing output filenames</h3>
+<p>This is the main reason for the rewrite: The current version is not very good at naming the output files on disk. The new version on the other hand calculates the filename based on the locations of the input files, and not the content of those files. This means that a new filename will only be generated when the list of input files change. This makes finding processed assets a lot more robust. But what about browser caching? That is still accounted for, since the path generated by the route contains the checksum of the content of the input files, so it changes each time the input files are changed.</p>
+<h3 id="wheretofindsourceassets">Where to find source assets</h3>
+<p><code>source_paths</code> has been replaced with two more powerful attributes in the <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/v2#store">store</a>: The “store” is an object that inherits from <a href="https://metacpan.org/pod/Mojolicious::Static">Mojolicious::Static</a> which, instead of <code>source_paths</code>, has <code>classes</code> and <code>paths</code> attributes allowing you to also declare your assets in the DATA section of your classes.</p>
+<h2 id="majorchangesforexistingusers">Major changes for existing users</h2>
+<p>There is some existing functionality that will (probably) be dropped.</p>
+<h3 id="definingassets">Defining assets</h3>
+<p>Assets cannot be defined with the default helper <code>asset()</code> anymore. You need to call <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/v2#process">process()</a>.</p>
+<h3 id="mojo_assetpack_no_cache">MOJO_ASSETPACK_NO_CACHE</h3>
+<p>There’s an option today to rebuild the assets on each request, instead of just on startup. I’m not quite sure if I want to keep this or not. What I might want to do instead is to add support for <code>MOJO_ASSETPACK_WATCH</code> which will rebuild the changed assets and <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/commit/77ef8c53ba8f1ad45af8d1f4a9372727ebe9c795">reload the page</a> in the browser.</p>
+<h3 id="fetchingonlineassets">Fetching online assets</h3>
+<p>The <code>fetch()</code> method will be removed. I would much rather want to improve the process step to do all the fetching.</p>
+<h3 id="willdieinsteadofshowinganerrorassetinthebrowser">Will die instead of showing an error asset in the browser</h3>
+<p>The current version creates an error asset, which gives visual feedback in the browser. This might be re-implemented, but right now I consider the complexity to simply not be worth it. This behavior is especially a bad idea in production, where you probably want a hot deployment of <a href="https://metacpan.org/pod/Mojo::Server::Hypnotoad">hypnotoad</a> to fail instead of showing an ugly page.</p>
+<h3 id="wildcardsinsourcepathfilenames">Wildcards in source path/filenames</h3>
+<p>A source path cannot have “*” in it. The star used to be a way of including all files from a given directory, matching an expression. This logic simply does not work if you use the standard CPAN toolchain and remove files in the which again results in the AssetPack finding files that should not be there. So instead there’s now support for creating a very simple <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Guides/Tutorial.pod#defining-assets-in-a-definition-file">assetpack.def</a>, which should be easy to generate from the command line.</p>
+<h3 id="facebooksreact">Facebook’s React</h3>
+<p>“jsx” support is incredibly difficult to get right, and the current version is, at best, buggy. I will not continue to support this.</p>
+<h3 id="globalvariablessuchassass_path">Global variables, such as SASS_PATH</h3>
+<p>This just won’t happen. Unless I mess up. Variables such as <code>SASS_PATH</code> are used internally, but it can’t be set from the command line. Environment and global variables are just not predictable enough to be trusted in this setting.</p>
+<h2 id="newfeatures">New features</h2>
+<p>The next version has some new cool features:</p>
+<h3 id="automaticinstall">Automatic install</h3>
+<p>AssetPack can automatically install third party node and ruby tools for processing assets, such as CoffeeScript. “node” and “ruby” are still required to be pre-installed though. I’m also looking into support for automatically installing Perl modules, but, ironically, I find that a bit harder to do right.</p>
+<h3 id="muchbetteratdownloadingonlineassets">Much better at downloading online assets</h3>
+<p>The <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Pipe/Sass.pm">Sass</a> pipe is able to download a sass file and all the @import-ed files recursively. This automatically deprecates plugins such as <a href="https://metacpan.org/pod/Mojolicious::Plugin::Bootstrap3">Mojolicious::Plugin::Bootstrap3</a>.</p>
+<h3 id="accesstothepipeobjects.">Access to the “pipe” objects.</h3>
+<p>The pipe objects can be <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/v2#pipe">accessed</a> from the main plugin. This makes it much easier to control the settings of a pipe.</p>
+<h3 id="optionaldependencies">Optional dependencies</h3>
+<p>All <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/master/cpanfile">dependencies</a> are optional. This means that you need to install more modules manually while developing, but running an application in production does not require any. The idea is that all of the “pipes” will skip processing the asset when they are already available.</p>
+<h3 id="riotjs">Riotjs</h3>
+<p>Support for processing <a href="http://riotjs.com/">Riotjs</a> is now part of the <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Pipe/Riotjs.pm">core</a> distribution.</p>
+<h2 id="todo">TODO</h2>
+<p>There is (at least) one missing feature that needs to be implemented – at least before I completely deprecate the “pre-processors”:</p>
+<h3 id="csssprites">CSS sprites</h3>
+<p>The idea here is to make a subclass of <a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Asset.pm">Asset</a> which can hold all of the images. This object will again be able to create CSS from the images, just like today.</p>
+<h2 id="summary">Summary</h2>
+<p>I hope people will try out the new version in the wild before the next release happens. The merge will happen at some point, but that point could be delayed if you report back breaking changes. The next version should also be fully backwards compatible (the test suite says so), but feedback on both new and old functionality is greatly appreciated.</p>
+<p>How to get the next version:</p>
+<pre><code>$ cpanm https://github.com/jhthorsen/mojolicious-plugin-assetpack/archive/v2.tar.gz
+</code></pre>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/tree/v2#synopsis">Main documentation</a></li>
+<li><a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Guides/Tutorial.pod">Tutorial</a></li>
+<li><a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/blob/v2/lib/Mojolicious/Plugin/AssetPack/Guides/Cookbook.pod">Cookbook</a></li>
+<li><a href="https://github.com/jhthorsen/mojolicious-plugin-assetpack/pull/71">Pull request</a></li>
+</ul>
+
+

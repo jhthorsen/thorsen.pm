@@ -1,0 +1,55 @@
+
+  <h1>How to deliver your images through Cloudinary with Perl</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2012-07-10/cloudinary-how-to-deliver-your-static-images.html">
+      10th of July, 2012
+</a>  </p>
+
+  <p><a href="http://cloudinary.com">Cloudinary</a> is a cloud-based service for image management &amp; manipulation. From <a href="http://cloudinary.com/about">their about page</a>:</p>
+<p>Use Cloudinary to: * Manage all your assets and web resources in the cloud. * Allow any web application, large or small, to enjoy modern web delivery platforms. * Completely remove the tedious tasks of locally managing web resources; instead, utilize the advanced features and industry best practices we always wished we had.</p>
+<p>I personally feel that Cloudinary has lifted a burden from me, since I really don’t like to figure out the best <a href="http://metacpan.org">Perl module</a> to manipulate my images. I used to use <a href="http://imagemagick.org/">Imagemagic</a> for a while, but it simply isn’t that easy to use as Cloudinary.</p>
+<p>I started out with the excellent <a href="http://cloudinary.com/documentation">documentation</a>, discussed with Cloudinary using their online chat, and managed to pull together a Perl module I named <a href="https://metacpan.org/module/Cloudinary">Cloudinary</a>. This module is based on top of the excellent <a href="http://mojolicious.org">Mojolicious</a> framework, which allow you to communicate with Cloudinary in an async matter, which can be useful if you’re working with a lot of assets.</p>
+<h2 id="mainfeatures">Main features</h2>
+<ul>
+<li><a href="https://metacpan.org/module/Cloudinary#upload">Upload</a> images and other assets to Cloudinary.</li>
+<li><a href="https://metacpan.org/module/Cloudinary#url_for">Generate URL</a> to assets which has been uploaded.</li>
+<li><a href="https://metacpan.org/module/Cloudinary#destroy">Delete</a> uploaded assets.</li>
+</ul>
+<h2 id="example">Example</h2>
+<p>To run the examples below, you need to install the module first:</p>
+<pre><code>cpanm -n --sudo Cloudinary
+</code></pre>
+<p>Don’t have cpanm? Install cpanm using this command:</p>
+<pre><code>curl -L http://cpanmin.us | perl - --self-upgrade
+</code></pre>
+<p>So how do you talk with Cloudinary? Here is an simple example which doesn’t even require an account:</p>
+<pre><code>use feature &#39;say&#39;;
+use Mojo::Base; # or strict and warnings;
+use Cloudinary;
+
+my $cloudinary = Cloudinary-&gt;new(cloud_name =&gt; &#39;demo&#39;);
+say $cloudinary-&gt;url_for(&#39;jhthorsen.jpg&#39; =&gt; {
+        type =&gt; &#39;facebook&#39;,
+        width =&gt; 50,
+        height =&gt; 100,
+    });
+</code></pre>
+<p>The code above will print this URL, which points to a scaled Facebook image of me:</p>
+<pre><code>http://res.cloudinary.com/demo/image/facebook/h_100,w_50/jhthorsen.jpg
+</code></pre>
+<p>The destribution also includes a <a href="https://metacpan.org/module/Mojolicious::Plugin::Cloudinary">Mojolicious plugin</a> which provide helpers which makes embedding images in your <a href="https://metacpan.org/module/Mojo::Template">mojo templates</a> easy:</p>
+<pre><code>%= cloudinary_image &#39;jhthorsen.jpg&#39;, { type =&gt; &#39;facebook&#39; };
+</code></pre>
+<p>The above code will produce this output:</p>
+<p><img alt="jhthorsen.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/facebook/jhthorsen.jpg"></p>
+<h2 id="tryitout">Try it out!</h2>
+<p>Register a free plan at Cloudinary try it out for your self. My module should allow you to take advantage of all the cool <a href="http://cloudinary.com/documentation/image_transformations">transformations</a> which Cloudinary provides — and if not: Create an issue or send me a pull request on <a href="https://github.com/jhthorsen/cloudinary">github</a>.</p>
+<p>More information can be found on metacpan:</p>
+<ul>
+<li><a href="https://metacpan.org/module/Cloudinary">Cloudinary</a></li>
+<li><a href="https://metacpan.org/module/Mojolicious::Plugin::Cloudinary">Mojolicious::Plugin::Cloudinary</a></li>
+</ul>
+<p>Enjoy 🙂</p>
+
+

@@ -1,0 +1,71 @@
+
+  <h1>How I write web applications</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2015-10-31/how-i-write-web-apps.html">
+      31th of October, 2015
+</a>  </p>
+
+  <p>This blog post is about the standard components I use when I develop and deploy my web applications.</p>
+<h2 id="serversidecomponents">Server side components</h2>
+<h3 id="mojolicious">Mojolicious</h3>
+<p>When I make a web page or web application I use <a href="https://mojolicious.org">Mojolicious</a>. Mojolicious is this awesome realtime web framework, which makes web development a <a href="http://mojolicious.org/perldoc/Mojolicious/Guides/Tutorial">walk in the park</a>. It has a lot of functionality built in, allowing you to make any basic web application without a single dependency.</p>
+<p>Some of the built in <a href="http://mojolicious.org/perldoc#HIGHLIGHTS">features</a>:</p>
+<ul>
+<li>User agent for fetching remote documents.</li>
+<li>JSON support for easy API development.</li>
+<li>Built in daemons for easy development and high traffic production sites.</li>
+<li>Templating system.</li>
+<li>Extremely easy to write tests.</li>
+</ul>
+<h3 id="assetpack">AssetPack</h3>
+<p><a href="https://metacpan.org/pod/Mojolicious::Plugin::AssetPack#MANUALS">AssetPack</a> is a plugin for Mojolicious which can be used to translate and minify different languages into proper CSS or JavaScript on the client side.</p>
+<p>The best part about AssetPack to me, is that it allows me to structure the CSS/JavaScript in multiple files, just like I would with my Perl code. Usually this can be very cumbersome to work with, but since AssetPack understands the difference between development and production, it will Do The Right Thing.</p>
+<p>One example is if you like to use Sass to write CSS, <a href="https://metacpan.org/pod/Mojo::Server::Morbo">morbo</a> will pick up your changes while developing and AssetPack will translate it into CSS, ready to use on the next refresh. No additional tools need to be started from the command line. In production, AssetPack doesn’t even need to know how to translate Sass: It will just use the last compiled asset.</p>
+<p>For the end user, the benefits are less requests to the server, and the minified assets will make the web page faster to download.</p>
+<p>Update: I suggest checking out <a href="https://metacpan.org/pod/Mojolicious::Plugin::Webpack">Mojolicious::Plugin::Webpack</a> instead.</p>
+<h3 id="swagger">Swagger</h3>
+<p><a href="http://swagger.io">Swagger</a> is “The World’s Most Popular Framework for APIs”. I’ve covered my <a href="https://metacpan.org/release/Swagger2">Swagger</a> module and why you want to use Swagger in <a href="/perl/programming/2015/07/05/mojolicious-swagger2.html">another blog post</a></p>
+<p>The reason why I want to have a proper API to my web server is that it makes it so much easier to develop nice JavaScript powered web applications.</p>
+<h2 id="clientsidecomponents">Client side components</h2>
+<h3 id="jquery">jQuery</h3>
+<p><a href="http://jquery.com">jQuery</a> was the first library that made it really fun for me write JavaScript. It used to be a struggle to make the JS code work in different browsers, such as IE 4,5,6,7,8,9,…, Firefox, Chrome and browser X, but with jQuery it Just Worked. These days I don’t use jQuery directly that much, but there are so many good plugins built on top of jQuery that I often have it as a part of my toolbox.</p>
+<p>Since browser support has gotten so mature, I try to use the native DOM API as much as possible, but it’s till a whole lot smoother to use jQuery.</p>
+<h3 id="riot">Riot</h3>
+<p><a href="http://riotjs.com">Riot</a> is inspired by <a href="https://facebook.github.io/react">React</a>. Both are a way of mixing JavaScript and HTML to create re-usable web components. They have a virtual DOM, which makes it lightning fast to figure out which element on the web page to update.</p>
+<p>From their web page:</p>
+<blockquote><p>React worked well for us, and we still use it in our Disqus Importer but we were bothered by the size and syntax of React (especially the syntax). We started thinking it could be simpler; both internally and for the user.</p></blockquote>
+<p>I choose Riot, because it’s lightweight, the syntax is easy to work with and the one-way data binding, together the <a href="http://riotjs.com/api/observable/">observable</a> pattern makes the code clean and easy to read.</p>
+<h3 id="sass">Sass</h3>
+<p><a href="http://sass-lang.com/">Sass</a> is one of many technologies I didn’t know why I wanted, before I started using it. But after I have started using Sass, it is very hard to go back to vanilla CSS.</p>
+<p>In addition to having reusable variables, mixins and operators, the the biggest advantage to me is the ability to nest selectors.</p>
+<h3 id="materialize">Materialize</h3>
+<p>I used to go with <a href="http://getbootstrap.com">Bootstrap</a> and <a href="http://fortawesome.github.io/Font-Awesome/">FontAwesome</a>, but now when I want to make a web app I reach for <a href="http://materializecss.com">Materialize</a> instead. I simply like the Google guidelines better and it makes the product feel more “appy”.</p>
+<p>Doing custom designs can be a lot of fun, but for a “backend hacker” like me, (with limited design skills) it’s a big help to have a framework to build on top of.</p>
+<p>There are other more slim solution, but if you go for the Sass/LESS built versions you can strip it down to fit your needs.</p>
+<h2 id="deployment">Deployment</h2>
+<h3 id="digitalocean">DigitalOcean</h3>
+<p><a href="https://www.digitalocean.com">DigitalOcean</a> is my favorite cloud service. I started out with <a href="https://www.heroku.com">Heroku</a>, but I think their pricing model is ridiculous. It’s unfair to compare them one-to-one, since heroku takes care of all the tedious work with maintaining the base OS and security. Doing this properly can be hard, but luckily I get help from <a href="https://galaxy.ansible.com">Ansible</a>. The galaxy web page contains many <a href="http://docs.ansible.com/ansible/playbooks.html">playbooks</a> that solve common problems.</p>
+<h3 id="cloudflare">Cloudflare</h3>
+<p><a href="https://cloudflare.com">Cloudflare</a> is just the best CDN. This is a subjective opinion based on reading their <a href="https://blog.cloudflare.com">blog</a>. I just think the way they want to improve the web is awesome! I also like their openness about the technologies they choose and the problems they face.</p>
+<p>Their service is also a breeze to work with. The web interface got a proper face lift a couple of months back and they also have an <a href="https://api.cloudflare.com">API</a> if you want to automate actions: I have set up a cronjob locally that will <a href="https://github.com/jhthorsen/mojo-cloudflare/blob/master/examples/maintain-a-records">maintain the mapping</a> between my domain and the IP on my home server, since I don’t have a static IP.</p>
+<h3 id="toadfarm">Toadfarm</h3>
+<p><a href="https://metacpan.org/release/Toadfarm">Toadfarm</a> is an application that I use to run my Mojolicious applications. It started out as a small tool for mounting multiple applications into one process to save memory, but has grown into a DSL with a lot more functionality. My favorite is probably that you can use it as an <a href="https://metacpan.org/pod/distribution/Toadfarm/lib/Toadfarm/Manual/RunningToadfarm.pod#Init-script">init script</a>.</p>
+<h3 id="imageresources">Image resources</h3>
+<p>It makes a web page more alive if you have nice images. One design is for example having a <a href="http://thorsen.pm">big photo</a> at the top of the page or a blended image in the background. If you need <a href="https://unsplash.com">free (do whatever you want) high-resolution photos</a>, you can search for them on <a href="https://www.google.no/search?q=unsplash+summer+people&amp;tbm=isch&amp;tbs=isz:l">Google</a>.</p>
+<h2 id="theend">The end</h2>
+<p>I skipped databases on purpose, since I don’t have a single database I use: I use PostgreSQL, SQLite, Redis, or any other backend that makes sense for a given problem. Even flat files.</p>
+<p>What are your basic building blocks? Would be nice to hear about them in the comments below. You’re also more than welcome to drop in a question if you wonder if there’s a common way to solve more specific problems.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="http://jquery.com">jQuery</a></li>
+<li><a href="http://mojolicious.org">Mojolicious</a></li>
+<li><a href="http://materializecss.com">Materialize</a></li>
+<li><a href="http://riotjs.com">Riot</a></li>
+<li><a href="http://sass-lang.com">Sass</a></li>
+<li><a href="http://swagger.io">Swagger</a></li>
+<li><a href="https://metacpan.org/pod/Toadfarm">Toadfarm</a></li>
+<li><a href="https://unsplash.com">Unsplash</a></li>
+</ul>
+
+

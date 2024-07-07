@@ -1,0 +1,87 @@
+
+  <h1>Cloudinary examples for applying effects to your images</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2012-07-11/cloudinary-effects.html">
+      11th of July, 2012
+</a>  </p>
+
+  <p>So yesterday I <a href="/perl/2012/07/10/cloudinary-how-to-deliver-your-static-images.html">blogged</a> about the basic functionality about Cloudinary, but there are so much more than scaling images that you can do.</p>
+<p>examples from <a href="http://cloudinary.com/blog/cloud_based_api_for_applying_effects_on_images">Cloudinary’s own blog</a>.</p>
+<p><a href="https://metacpan.org/module/Mojolicious::Plugin::Cloudinary">Mojolicious::Plugin::Cloudinary</a>, but you can also use the <a href="https://metacpan.org/module/Cloudinary">Cloudinary</a> module directly if you are not inside a mojo template.</p>
+<h2 id="effects">Effects</h2>
+<p>You can apply a variety of effects to your images using the “effect” argument to <a href="https://metacpan.org/module/Mojolicious::Plugin::Cloudinary#cloudinary_image">cloudinary_image()</a> or <a href="https://metacpan.org/module/Cloudinary#url_for">url_for()</a>. Here is the original image:</p>
+<pre><code>%= cloudinary_image &#39;horses.jpg&#39;; # no effects
+</code></pre>
+<div class="row">
+<div class="thumbnail span4"><img alt="horses.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/w_300/horses.jpg">
+<h5>Original image</h5>
+</div>
+</div>
+<p>The following examples modify the color saturation of the image. A negative saturation value will reduce saturation and a positive will increase it:</p>
+<pre><code>%= cloudinary_image &#39;horses.jpg&#39;, { effect =&gt; &#39;saturation:-70&#39; }
+%= cloudinary_image &#39;horses.jpg&#39;, { effect =&gt; &#39;saturation:70&#39; }
+</code></pre>
+<div class="row">
+<div class="thumbnail span4"><img alt="horses.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/e_saturation:-70,w_300/horses.jpg">
+<h5>With saturation:-70 effect</h5>
+</div>
+<div class="thumbnail span4"><img alt="horses.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/e_saturation:70,w_300/horses.jpg">
+<h5>With saturation:70 effect</h5>
+</div>
+</div>
+<p>You can also change the brightness or apply an sepia effect:</p>
+<pre><code>%= cloudinary_image &#39;horses.jpg&#39;, { effect =&gt; &#39;brightness:-50&#39; }
+%= cloudinary_image &#39;horses.jpg&#39;, { effect =&gt; &#39;sepia:50&#39; }
+</code></pre>
+<div class="row">
+<div class="thumbnail span4"><img alt="horses.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/e_brightness:-50,w_300/horses.jpg">
+<h5>With brightness:-50 effect</h5>
+</div>
+<div class="thumbnail span4"><img alt="horses.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/e_sepia:50,w_300/horses.jpg">
+<h5>With sepia:50 effect</h5>
+</div>
+</div>
+<p>They even added an “oil-paint” effect.</p>
+<pre><code>%= cloudinary_image &#39;horses.jpg&#39;, { effect =&gt; &#39;oil_paint&#39; }
+</code></pre>
+<div class="row">
+<div class="thumbnail span4"><img alt="horses.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/e_oil_paint,w_300/horses.jpg">
+<h5>With oil_paint effect</h5>
+</div>
+</div>
+<h2 id="chainedtransformations">Chained Transformations</h2>
+<p>Cloudinary also provide <a href="http://cloudinary.com/documentation/image_transformations">other transformations</a> and they can all be chained. Here is an example with Arianna Huffingtonâs Facebok profile picture:</p>
+<pre><code>%= cloudinary_image &#39;AriannaHuffington.png&#39;, { type =&gt; &#39;facebook&#39; }
+%= cloudinary_image &#39;AriannaHuffington.png&#39;, { type =&gt; &#39;facebook&#39;, width =&gt; 150, height =&gt; 150, crop =&gt; &#39;thumb&#39;, gravity =&gt; &#39;face&#39;, radius =&gt; 20, effect =&gt; &#39;sepia&#39; }
+</code></pre>
+<div class="row">
+<div class="thumbnail span4"><img alt="AriannaHuffington.png" decoding="async" src="http://res.cloudinary.com/demo/image/facebook/AriannaHuffington.png">
+<h5>Original</h5>
+</div>
+<div class="thumbnail span4"><img alt="AriannaHuffington.png" decoding="async" src="http://res.cloudinary.com/demo/image/facebook/c_thumb,e_sepia,g_face,h_150,r_20,w_150/AriannaHuffington.png">
+<h5>Chained effects</h5>
+</div>
+</div>
+<p>as shown in the Cloudinary blog. (Will either take <a href="https://github.com/jhthorsen/cloudinary">pull request</a> or implement it on <a href="/contact">request</a>).</p>
+<h2 id="tweakingawebsitescolorscheme">Tweaking a web site’s color scheme</h2>
+<p>Cloudinary provides the “hue” effect to change the color scheme of an image. This can be quite useful when you tweak the CSS color scheme and don’t want to jump into <a href="http://gimp.org">gimp</a> or photoshop to make changes to the background image or other assets included in your design.</p>
+<p>This example use the background image from the Cloudinary web site:</p>
+<pre><code>%= cloudinary_image &#39;site_bg.jpg&#39;;
+%= cloudinary_image &#39;site_bg.jpg&#39;, { effect =&gt; &#39;hue:40&#39; }
+</code></pre>
+<div class="row">
+<div class="thumbnail span4"><img alt="site_bg.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/w_300/site_bg.jpg">
+<h5>Original</h5>
+</div>
+<div class="thumbnail span4"><img alt="site_bg.jpg" decoding="async" src="http://res.cloudinary.com/demo/image/upload/e_hue:40,w_300/site_bg.jpg">
+<h5>With hue:40 effect</h5>
+</div>
+</div>
+<p>Want to try out the module? Complete API is documented on metacpan:</p>
+<ul>
+<li><a href="https://metacpan.org/module/Cloudinary">Cloudinary</a></li>
+<li><a href="https://metacpan.org/module/Mojolicious::Plugin::Cloudinary">Mojolicious::Plugin::Cloudinary</a></li>
+</ul>
+
+

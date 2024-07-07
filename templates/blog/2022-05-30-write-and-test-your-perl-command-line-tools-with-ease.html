@@ -1,0 +1,153 @@
+
+  <h1>Write and test Perl command line tools with ease</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2022-05-30/write-and-test-your-perl-command-line-tools-with-ease.html">
+      30th of May, 2022
+</a>  </p>
+
+  
+<p>Writing command line tools often involves a lot of boilerplate and they can be hard to test. <a href="https://metacpan.org/pod/Getopt::App">Getopt::App</a> is a module that helps you structure your command line applications without getting in the way.</p>
+
+
+
+<p>I already have a competing module called <a href="https://metacpan.org/pod/Applify">Applify</a> on CPAN. This module aims to solve the same problems as Getopt::App, but does so in a very different way. <a href="https://metacpan.org/pod/Getopt::App">Getopt::App</a> is much simpler (about half the code), but has more or less the same features as Applify:</p>
+
+
+
+<ul><li><a href="https://metacpan.org/pod/Getopt::Long">Getopt::Long</a> integration: Applify provides a function, while Getopt::App uses <code>Getopt::Long</code> syntax. This means that if you already know <code>Getopt::Long</code> then you don’t have to learn a different syntax.</li><li>Applify allows for one level of subcommands, while Getopt::App can handle an infinite number of subcommands. Getopt::App can also isolate the different subcommands in separate files, which makes the main script easier to read.</li><li><a href="https://metacpan.org/pod/Pod::Usage">Pod::Usage</a> functionality: Applify provides a function that can be used to describe where to read documentation from, while Getopt::App provides a function that reads documentation and returns it as a string that you can pass on to print. This makes Getopt::App much more flexible since you can manipulate the help text before printing it. Example: Replace the string “APPLICATION” with <code>basename($0)</code>.</li><li>Applify has automatic parsing of <code>--version</code>, which Getopt::App does not have. It is very easy to add to your Getopt::App powered script though – See below for an example.</li><li>Both modules provide <a href="https://metacpan.org/pod/Getopt::App#APPLICATION-METHODS">hooks</a> and allow for <a href="https://metacpan.org/pod/Getopt::App#import">inheritance</a>, but Getopt::App implement both in a much less invasive way.</li></ul>
+
+
+
+<p>If you still like Applify more than Getopt::App and want to maintain it, then please let me know and I’ll gladly give you commit bits.</p>
+
+
+
+<h2 class="wp-block-heading">Example script</h2>
+
+
+
+<pre class="wp-block-code"><code>#!/usr/bin/env perl
+package My::Script;
+use Getopt::App -signatures;
+
+sub name ($app) { $app-&gt;{name} // &#39;no name&#39; }
+
+run(
+  &#39;name=s  # Specify a name&#39;,
+  &#39;v+      # Verbose output&#39;,
+  &#39;h|help  # Output help&#39;,
+  &#39;version # Print application version&#39;,
+  sub ($app, @extra) {
+    return print extract_usage()    if $app-&gt;{h};
+    return say &quot;example.pl v1.00\n&quot; if $app-&gt;{version};
+    say $app-&gt;name;
+    return 0;
+  }
+);</code></pre>
+
+
+
+<p>The “package” statement is optional for simple scripts, but <em>required</em> for subcommands to prevent method collision. Even though it’s optional, it’s highly suggested. After defining your package, you have to use the <code>Getopt::App</code> module which can take <a href="https://metacpan.org/pod/Getopt::App#import">optional flags</a>. Even with no flags, the module will import <code>strict</code>, <code>warnings</code>, and a bunch of other useful features. The last statement in the script must be the <code>run()</code> function: This function will understand if you source the script in a unit test or running it form the command line. When sourcing the script, no code will actually be run before you explicitly want it to.</p>
+
+
+
+<h2 class="wp-block-heading">Example test</h2>
+
+
+
+<pre class="wp-block-code"><code>#!/usr/bin/env perl
+use Getopt::App -capture;
+use File::Spec::Functions qw(catfile rel2abs);
+use Test::More;
+
+my $app = do(rel2abs(catfile qw(script example.pl)));
+my $res = capture($app, [qw(--help)]);
+like $res-&gt;[0], qr{Usage:}, &#39;stdout&#39;;
+is   $res-&gt;[1], &#39;&#39;,         &#39;stderr&#39;;
+is   $res-&gt;[2], 0,          &#39;exit code&#39;;
+
+done_testing;</code></pre>
+
+
+
+<p>Importing Getopt::App with the <code>-capture</code> flag will export the <code><a href="https://metacpan.org/pod/Getopt::App#capture">capture()</a></code> utility function which can be used to run the application and capture STDOUT, STDERR and the exit code. <code>capture()</code> takes two arguments: The first is the sourced application and the second is the command line arguments as an array-ref. The test above will call the code block provided to <code>run()</code> above, but since the whole package is sourced, there is nothing wrong with calling methods directly:</p>
+
+
+
+<pre class="wp-block-code"><code>#!/usr/bin/env perl
+use Getopt::App -capture;
+use File::Spec::Functions qw(catfile rel2abs);
+use Test::More;
+
+my $app = do(rel2abs(catfile qw(script example.pl)));
+my $obj = My::Script-&gt;new;
+is $obj-&gt;name, &#39;no name&#39;, &#39;default name&#39;;
+
+done_testing</code></pre>
+
+
+
+<h2 class="wp-block-heading">Hooks, customization and subcommands</h2>
+
+
+
+<p>If you don’t like the defaults set up by Getopt::App, then there are many <a href="https://metacpan.org/pod/Getopt::App#APPLICATION-METHODS">hooks</a> to customize it to your liking. Each hook must be defined as a method inside your script. To prevent naming collisions, the hook methods are prefixed with “<strong>getopt_</strong>“. Here is an example:</p>
+
+
+
+<pre class="wp-block-code"><code>#!/usr/bin/env perl
+package My::Script;
+use Getopt::App -signatures;
+
+sub getopt_configure ($app) {
+  return qw(default no_auto_abbrev no_ignore_case);
+}
+
+sub getopt_pre_process_argv ($app, $argv) {
+  push @$argv, &#39;man&#39; unless @$argv;
+}
+
+sub getopt_subcommands ($app) {
+  return [
+    [&#39;bar&#39;, &#39;/path/to/bar.pl&#39;, &#39;Bar help text&#39;],
+    [&#39;foo&#39;, &#39;/path/to/foo.pl&#39;, &#39;Foo help text&#39;],
+    [&#39;man&#39;, &#39;/path/to/man.pl&#39;, &#39;Show manual&#39;],
+  ];
+}
+
+sub getopt_unknown_subcommand ($app, $argv) {
+  die &quot;Not cool.\n&quot;;
+}
+
+run(sub { print extract_usage() });</code></pre>
+
+
+
+<h2 class="wp-block-heading">Bundling</h2>
+
+
+
+<p>I often want to write scripts that can be easily downloaded and run by others. Depending on <code>Applify</code> will add an extra hurdle that your users have to jump through to be able to run the script. <strong>Getopt::App</strong> on the other hand can easily be bundled with your script. To do so, simply call the <code><a href="https://metacpan.org/pod/Getopt::App#bundle">bundle()</a></code> method from a oneliner:</p>
+
+
+
+<pre class="wp-block-code"><code>$ perl -MGetopt::App -e&#39;Getopt::App-&gt;bundle(shift)&#39; src/myscript.pl &gt; script/myscript</code></pre>
+
+
+
+<p>The output <code>script/myscript</code> application now has Getopt::App inline!</p>
+
+
+
+<h2 class="wp-block-heading">Conclusion</h2>
+
+
+
+<p>I hope this introduction to Getopt::App gave you some ideas about how easy a script can be better structured and tested with functions like <code>capture()</code>. If you want to see more examples then please have a look at the <a href="https://github.com/jhthorsen/getopt-app/tree/main/example">examples</a> and <a href="https://github.com/jhthorsen/getopt-app/tree/main/t">test suite</a>.</p>
+
+
+
+<p>Have a nice day!</p>
+
+

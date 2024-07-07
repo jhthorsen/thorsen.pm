@@ -1,0 +1,13 @@
+
+  <h1>More perl modules</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2008-05-06/more-perl-modules.html">
+      6th of May, 2008
+</a>  </p>
+
+  <p>I’m working on some more perl-modules now: <a href="http://search.cpan.org/dist/YAML-Object">YAML::Object</a> and <a href="http://search.cpan.org/dist/POE-Component-TFTPd">POE::Component::TFTPd</a>. I’ve also fixed some issues with SNMP::Effective, and written a <a href="http://github.com/jhthorsen/snmp-effective/tree/net-snmp">new implementation</a>, that uses Net::SNMP instead of SNMP.</p>
+<p>The YAML-module is a result of bad typing: I’m quite sick of doing $config-&gt;{typoo}{key}. YAML::Object enables you to use method notation, so the above would become $config-&gt;typoo-&gt;key, and calling key() on an undef value will barf with a nice error message.</p>
+<p>I’m pretty exited about the POE::Component, since I’ve never written anything quite like it before. Check out <a href="http://search.cpan.org/dist/POE">POE</a> If you haven’t already done so, it’s really cool 🙂</p>
+
+

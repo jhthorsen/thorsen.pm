@@ -1,0 +1,78 @@
+
+  <h1>Howto set up Convos on @digitalocean</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2014-03-02/convos-on-digitalocean.html">
+      2nd of March, 2014
+</a>  </p>
+
+  <p>From <a href="http://convos.by">convos.by</a>:</p>
+<blockquote><p>Convos is the simplest way to use IRC. It is always online, and accessible to your web browser, both on desktop and mobile. Run it on your home server, or cloud service easily. It can be deployed to Heroku or Docker-based cloud services, or you can just run it as a normal Mojolicious application, using any of the Deployment Guides.</p></blockquote>
+<p>So now I’m going to show how easy it is to deploy Convos on a cloud service.</p>
+<p>The cloud service I’ve chosen is <a href="https://www.digitalocean.com">DigitalOcean</a>, because it is incredible easy to set up and they have a sane payment plan.</p>
+<p>Want to see a running version of Convos? Check out the <a href="http://demo.convos.by">demo</a> page which was set up using the instructions in this tutorial.</p>
+<h2 id="prerequisits">Prerequisits</h2>
+<ul>
+<li>You need an account on <a href="https://www.digitalocean.com">DigitalOcean</a></li>
+<li>You need to create a Droplet running Ubuntu 13.10 to have some sort of sane version of Perl and Redis. Choose the cheapest droplet they have to begin with.</li>
+</ul>
+<h2 id="installconvos">Install Convos</h2>
+<p>Log into the droplet you created in the previous step.</p>
+<pre><code>$ ssh -l root $DROPLET_IP_FROM_DIGITAL_OCEAN
+</code></pre>
+<p>You are now logged in as root. Next step is to install dependencies.</p>
+<pre><code>$ apt-get install make gcc redis-server libio-socket-ssl-perl libio-socket-ip-perl libev-perl
+</code></pre>
+<p>We need “make” and “gcc” since Convos depend on some modules which need to be compiled. “<a href="http://redis.io/">redis-server</a>” is the database where we will store our data. The rest are libraries which will make Convos able to handle SSL, IPv6 and run faster.</p>
+<p>Next we want to run Convos as a non-priviledged user. We will do that by adding the “convos” user and run the rest of the commands as “convos”:</p>
+<pre><code>$ adduser convos
+$ su - convos
+</code></pre>
+<p>Next install convos and start the server:</p>
+<pre><code>$ curl -L http://convos.by/install.sh | bash -
+$ cd convos-release
+$ mkdir log
+$ ./vendor/bin/carton exec hypnotoad script/convos
+</code></pre>
+<p>That’s it! You can now point your browser to “http://$DROPLET_IP_FROM_DIGITAL_OCEAN:8080” to start using Convos.</p>
+<h2 id="convosonport80insteadof8080">Convos on port 80 instead of 8080</h2>
+<p>To increase security and let Convos be accessible on port 80, we will use <a href="https://help.ubuntu.com/community/UFW">ufw</a>.</p>
+<p>If you are still “convos” user, you need to run “exit” to get back to “root”. When you are “root”, run the commands below to set up ufw.</p>
+<p>NOTE! It is very important that you include the “ufw allow ssh” line, or else you will be locked out of your own droplet. If that happens, you need to start a console from web, by logging into <a href="https://cloud.digitalocean.com/">DigitalOcean</a>.</p>
+<pre><code># basic firewall rules: Deny everything except HTTP and SSH traffic
+$ ufw default deny incoming
+$ ufw default allow outgoing
+$ ufw allow ssh
+$ ufw allow 80/tcp
+$ ufw allow 8080/tcp
+
+# forward traffic from port 80 to 8080
+$ cat &lt;&lt;FIREWALL_RULES &gt;&gt; /etc/ufw/before.rules
+*nat
+:PREROUTING ACCEPT [0:0]
+-A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+-A OUTPUT -o lo -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 8080
+COMMIT
+FIREWALL_RULES
+
+# start the firewall
+$ ufw enable
+</code></pre>
+<p>You could also fire up <a href="https://www.nginx.com/">nginx</a> or another web server, but there’s no good reason for that if you are only setting up Convos.</p>
+<h2 id="autostartconvoswhentheserverboots">Autostart Convos when the server boots</h2>
+<p>If you restart the server now, Convos will not start. You can autostart the server by adding a command to “/etc/rc.local”, right before “exit 0” or somewhere before the end of the file.</p>
+<pre><code>/usr/bin/sudo -u convos bash -c &#39;cd /home/convos/convos-release; ./vendor/bin/carton exec hypnotoad script/convos&#39;
+</code></pre>
+<h2 id="othertips">Other tips</h2>
+<p>You probably want to set up a DNS record that points to the droplet’s IP address. You can do this by registering a domain on <a href="http://gandi.net">gandi</a> and configure the DNS on <a href="http://cloudflare.com">cloudflare</a>.</p>
+<h2 id="summary">Summary</h2>
+<p>After following these steps, you have IRC with you anywhere you go, as long as you have your phone, table or laptop and power and internet.</p>
+<h2 id="resources">Resources</h2>
+<ul>
+<li>Running demo: <a href="http://demo.convos.by">http://demo.convos.by</a></li>
+<li>Issues: <a href="https://github.com/Nordaaker/convos/issues">https://github.com/Nordaaker/convos/issues</a></li>
+<li>Code: <a href="https://github.com/Nordaaker/convos">https://github.com/Nordaaker/convos</a></li>
+</ul>
+<p>Any <a href="https://github.com/Nordaaker/convos/issues">feedback</a> is more than welcome. Come talk to us on IRC: #convos on irc.perl.org.</p>
+
+

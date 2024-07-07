@@ -1,0 +1,19 @@
+
+  <h1>My x200 used to say “beep”</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2010-07-13/x200-beep.html">
+      13th of July, 2010
+</a>  </p>
+
+  <p>I’ve been using my <a href="http://www.google.com/search?q=thinkpad+x200">Thinkpad x200</a> for about a year now, and I’m pretty sure it started beeping some time this winter: A short “beep” occurred each time it came back from suspend or the power cord was plugged in. It has been pretty annoying, but it has not been <a href="http://www.google.com/images?q=annoying">annoying</a> enough for me to “fix it” until yesterday. So I started googling the issue, since it used to be the “pcspkr” module loaded by <a href="http://ubuntu.com">Ubuntu</a> which resulted in the annoying beeping, but was not the case since it wasn’t even loaded in 10.4.</p>
+<p>So I gave up on google after some time and decided to seek answer where no answer has been found before: I entered the <a href="http://en.wikipedia.org/wiki/BIOS">BIOS</a>, (I haven’t looked for this answer in the bios, it’s just that I consider the BIOS to be pretty useless) poked around, disabled some features and the beep went away.</p>
+<ul>
+<li>Press Thinkvantage, and then F1 to enter the BIOS (right after the power is turned on)</li>
+<li>Then go to “Config” -&gt; “Beep and alarm”</li>
+<li>Simply select DISABLE on each of the choices, if you dislike beeps as much as I do.</li>
+<li>Press F10 to save and exit the BIOS, and you’re beep free!</li>
+</ul>
+<p>I’m not going to investigate this any further, but I’m still curious about when the beeping started… Had it always been beeping or has there been some kernel updates, whick resulted in the beeping to start? I’m guessing the “kernel update” is the right answer, but I have no idea how to disable it from <a href="http://www.linux.org/">Linux</a>. Is it somewhere in /sys or /proc, or…?</p>
+
+

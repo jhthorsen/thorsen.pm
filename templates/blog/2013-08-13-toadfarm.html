@@ -1,0 +1,71 @@
+
+  <h1>Continuous deployment with #Mojolicious and @github</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2013-08-13/toadfarm.html">
+      13th of August, 2013
+</a>  </p>
+
+  <p>After hearing <a href="https://twitter.com/OvidPerl">Curtis Poe</a> giving the talk “<a href="http://act.yapc.eu/ye2013/talk/4817">Agile Companies Go P.O.P.â</a>” at the <a href="http://act.yapc.eu/ye2013/">YAPC</a> I thought I should finally get the word out about my extension to <a href="https://metacpan.org/release/Mojolicious">Mojolicious</a>, which allow continuous deployment using a github post-receive hook.</p>
+<p>So… Mojolicious has this marvelous web server called <a href="https://metacpan.org/module/Mojo::Server::Hypnotoad">hypnotoad</a>. What makes this server so cool, is that it can do hot deployment<a class="footnote" href="#fn:fn-hot_deployment" id="fnref:fn-hot_deployment">1</a>.This is indeed excellent feature for continuous deployment. In my projects I have also pure copywriters which wants to make changes to the templates, but has no idea how to ssh-into-ec2-then-restart-the-server-with-some-sudo-command. Even though we’re a small group, I wanted to give the opportunity to my partners in crime to restart the server by themselves instead of waiting for me. So therefor I decided to write <a href="https://metacpan.org/module/Toadfarm">Toadfarm</a> and <a href="https://metacpan.org/module/Toadfarm::Plugin::Reload">Toadfarm::Plugin::Reload</a>.</p>
+<p>The “Reload” plugin allow this workflow:</p>
+<ol>
+<li>The developer / copywriter edit files locally.</li>
+<li>Then they use <a href="https://mac.github.com">github Mac</a> to push the changes back to a special branch<a class="footnote" href="#fn:fn-special_branch" id="fnref:fn-special_branch">2</a>.</li>
+<li>Github then POST a document to Toadfarm, using a post-receive hook.</li>
+<li>Toadfarm <a href="https://metacpan.org/source/JHTHORSEN/Toadfarm-0.12/lib/Toadfarm/Plugin/Reload.pm#L196">verifies</a> that the request is from github.</li>
+<li>Toadfarm then reloads with the new source code if it is valid.</li>
+</ol>
+<p>There might be a delay between pushing the code and a complete restart, but if everything goes OK, the new code should be up and running within 30 seconds.</p>
+<p>What kind of configuration is required to make this work? Not much really:</p>
+<ul>
+<li>You need to set up the <a href="https://help.github.com/articles/post-receive-hooks">post-receive hook</a>.</li>
+<li>Make sure the remote “origin” in production point to github.</li>
+<li>Configure Toadfarm.</li>
+</ul>
+<p>Below you can see a sample config, which is essentially copy/paste from my server.</p>
+<pre><code>{
+  secret =&gt; &#39;some-super-secret-session-hash&#39;,   # Mojolicious config
+  hypnotoad =&gt; {                                # Hypnotoad config
+    pid_file =&gt; &#39;/var/run/toadfarm/pid&#39;,        # |
+    listen =&gt; [ &#39;http://*:8080&#39; ],              # |
+  },
+  apps =&gt; [                                     # Toadfarm config
+    &#39;/home/webapps/batware/script/batware&#39; =&gt; { # |
+      Host =&gt; &#39;home.thorsen.pm&#39;,                # |
+    },
+  ],
+  plugins =&gt; [
+    Reload =&gt; {                                 # Toadfarm::Plugin::Reload config
+      path =&gt; &#39;/something-secret-5&#39;,            # |
+      repositories =&gt; [{                        # |
+        name =&gt; &#39;jhthorsen.github.com&#39;,         # |
+        branch =&gt; &#39;master&#39;,                     # |
+        path =&gt; &#39;/home/webapps/batware&#39;,        # |
+      }],
+    },
+  ],
+}
+</code></pre>
+<p>CAVEAT:</p>
+<ul>
+<li>Hypnotoad (by it self) will not detect syntax errors in the templates on reload.</li>
+</ul>
+<p>Want to try it out? It’s simple to install with <a href="http://cpanmin.us">cpanminus</a>:</p>
+<pre><code>$ cpanm -n --sudo Toadfarm
+</code></pre>
+<p>See also <a href="https://github.com/jhthorsen/toadfarm/tree/master/etc/">examples</a> on how to set it up.</p>
+<p>Want to discuss or ask questions about Toadfarm? Comment below or contact <a href="irc://irc.perl.org/batman">batman</a> @ irc.perl.org. (I’m usually in the <a href="http://irclog.perlgeek.de/mojo/2013-08-13">#mojo</a> channel)</p>
+<div class="footnotes">
+<hr>
+<ol>
+<li id="fn:fn-hot_deployment">
+<p>Hot Deployment refers to the ability of making changes to a running application without causing any downtime or without restarting the server.<a class="reversefootnote" href="#fnref:fn-hot_deployment"> ↩</a></p>
+</li>
+<li id="fn:fn-special_branch">
+<p>The config need to contain the branch name which you push to.<a class="reversefootnote" href="#fnref:fn-special_branch"> ↩</a></p>
+</li>
+</ol>
+</div>
+
+

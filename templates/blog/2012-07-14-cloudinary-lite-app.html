@@ -1,0 +1,128 @@
+
+  <h1>A #Mojolicious lite app that use @Cloudinary</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2012-07-14/cloudinary-lite-app.html">
+      14th of July, 2012
+</a>  </p>
+
+  <p>So earlier this week I’ve written about <a href="/perl/2012-07-10-cloudinary-how-to-deliver-your-static-images">How to deliver your images through Cloudinary with Perl</a> and <a href="/perl/2012-07-11-cloudinary-effects">Cloudinary examples for applying effects to your images</a>. Today I’m posting a Mojolicious lite app which can upload images to your Cloudinary account, show them on a web page and allow the visitor to delete them.</p>
+<p>The example use javascript to load the images, which can be useful if you want to load one version on a small device and another one on a desktop computer.</p>
+<p>You should store the public IDs in some sort of local database (<a href="http://www.postgresql.org">PostgreSQL</a>, <a href="http://www.mongodb.org">MongoDB</a>, …) to make the data persistent.</p>
+<p>let’s keep it simple for the sake of the example app.</p>
+<p>is not valid for the <strong>cloud_name</strong> “demo”.</p>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="http://cloudinary.com/blog/cloudinary_s_jquery_library_for_embedding_and_transforming_images">Cloudinary’s jQuery plugin</a></li>
+<li><a href="http://metacpan.org/module/Cloudinary">Cloudinary perl module</a></li>
+<li><a href="http://metacpan.org/module/Mojolicious::Lite">Mojolicious::Lite perl module</a></li>
+</ul>
+<h2 id="mojoliciousliteappexample">Mojolicious lite app example</h2>
+<pre><code>use Mojolicious::Lite;
+
+# your params can be found at https://cloudinary.com/console
+plugin cloudinary =&gt; {
+    api_key =&gt; &#39;1234567890&#39;,
+    api_secret =&gt; &#39;your-super-s3cret&#39;,
+    cloud_name =&gt; &#39;demo&#39;, # your cloud name
+};
+
+# this need to be some sort of backend database
+my $persistent_storage = { horses =&gt; time };
+
+get &#39;/&#39; =&gt; &#39;index&#39;;
+
+post &#39;/image&#39; =&gt; sub {
+    my $self = shift;
+
+    $self-&gt;render_later;
+    $self-&gt;cloudinary_upload({
+        file =&gt; scalar $self-&gt;req-&gt;upload(&#39;some_file_field&#39;),
+        on_success =&gt; sub {
+            my($res, $tx) = @_;
+            $self-&gt;stash(message =&gt; &#39;The image was uploaded&#39;);
+            $self-&gt;app-&gt;persistent_storage-&gt;{$res-&gt;{&#39;public_id&#39;}} = time;
+            $self-&gt;render(template =&gt; &#39;index&#39;);
+        },
+        on_error =&gt; sub {
+            my($res, $tx) = @_;
+            $self-&gt;stash(message =&gt;
+                $res ? $res-&gt;{&#39;error&#39;}{&#39;message&#39;}
+                    : &#39;Could not upload the image&#39;);
+            $self-&gt;render(template =&gt; &#39;index&#39;);
+        },
+    });
+};
+
+get &#39;/image/:public_id/delete&#39; =&gt; sub {
+    my $self = shift;
+    my $id = $self-&gt;param(&#39;public_id&#39;);
+
+    $self-&gt;render_later;
+    $self-&gt;cloudinary_destroy({
+        public_id =&gt; $id,
+        on_success =&gt; sub {
+            $self-&gt;stash(message =&gt; &#39;The image was destroy&#39;);
+            delete $self-&gt;app-&gt;persistent_storage-&gt;{$id};
+            $self-&gt;render(template =&gt; &#39;index&#39;);
+        },
+        on_error =&gt; sub {
+            my($res, $tx) = @_;
+            $self-&gt;stash(message =&gt;
+                $res ? $res-&gt;{&#39;error&#39;}{&#39;message&#39;}
+                    : &#39;Could not destroy the image&#39;);
+            $self-&gt;render(template =&gt; &#39;index&#39;);
+        },
+    });
+};
+
+app-&gt;defaults(cloud_name =&gt; &#39;demo&#39;, message =&gt; &#39;&#39;, images =&gt; $persistent_storage);
+app-&gt;secret(&#39;yey!&#39;);
+app-&gt;start;
+
+__DATA__
+@@ layouts/default.html.ep
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;&lt;%= title %&gt;&lt;/title&gt;&lt;/head&gt;
+%= javascript &#39;/js/jquery.js&#39;
+%= javascript &#39;https://raw.github.com/cloudinary/cloudinary_js/master/js/jquery.cloudinary.js&#39;;
+%= javascript begin
+$(document).ready(function() {
+    $.cloudinary.config(&#39;cloud_name&#39;, &#39;&lt;%= $cloud_name %&gt;&#39;);
+    $(&#39;img[data-src]&#39;).cloudinary();
+});
+% end
+&lt;body&gt;&lt;%= content %&gt;&lt;/body&gt;
+&lt;/html&gt;
+
+@@ index.html.ep
+% layout &#39;default&#39;;
+% title &#39;Upload image example&#39;;
+
+% if($message) {
+&lt;p&gt;&lt;%= $message %&gt;&lt;/p&gt;
+% }
+
+%= form_for &#39;/image&#39;, method =&gt; &#39;post&#39;, enctype =&gt; &#39;multipart/form-data&#39;, begin
+    &lt;div&gt;
+        &lt;label&gt;Image&lt;/label&gt;
+        %= file_field &#39;some_file_field&#39;;
+        %= submit_button &#39;Upload&#39;;
+    &lt;div&gt;
+% end
+
+% for my $id (keys %$images) {
+&lt;p&gt;
+    %= $id
+    %= cloudinary_js_image &quot;$id.jpg&quot;, { width =&gt; 300 };
+    %= link_to &quot;Delete $id&quot;, &#39;imagepublic_iddelete&#39;, { public_id =&gt; $id };
+&lt;p&gt;
+% }
+</code></pre>
+<p><!--
+grep "^\(    \|$\)" perl/_posts/2012-07-15-cloudinary-lite-app.markdown | sed 's#    ##' | perl - daemon
+--></p>
+<p> </p>
+
+

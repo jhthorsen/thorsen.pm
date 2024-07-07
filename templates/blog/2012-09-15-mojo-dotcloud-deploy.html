@@ -1,0 +1,94 @@
+
+  <h1>Howto deploy #Mojolicious to @dotcloud</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2012-09-15/mojo-dotcloud-deploy.html">
+      15th of September, 2012
+</a>  </p>
+
+  <h2>—</h2>
+<p>After sending some <a href="https://twitter.com/jhthorsen/status/246716307741999106">tweets</a><br>
+with dotcloud I’ve figured out how to deploy <a href="http://mojolicious.org">Mojolicious</a> to<br>
+<a href="http://dotcloud.com">dotcloud</a> as a perl-worker.</p>
+<p>The way I previously deployed was using the standard<br>
+<a href="http://docs.dotcloud.com/0.4/services/perl/">perl</a> service, with a uWSGI<br>
+frontend. The really cool thing about a perl-worker is that the mojo<br>
+web application is running persistently allowing it to:</p>
+<ul>
+<li>Handle more requests in parallel</li>
+<li>Use WebSockets</li>
+<li>Allow the mojo app to do other tasks periodically</li>
+</ul>
+<p>do both sync/async in mojolicious)</p>
+<p>Mojolicious and dotcloud.</p>
+<p>So here is how I did it:</p>
+<h2 id="dotcloud.yml">dotcloud.yml</h2>
+<p>This file is the build file used by dotcloud to figure out which services<br>
+to set up. Here is an example file that I use:</p>
+<pre><code>www:
+  type: perl-worker
+  config:
+    perl_version: v5.16.x
+  ports:
+    www: http
+</code></pre>
+<p>The “magical” config setting here is “ports”. This allow the perl-worker to<br>
+be accessible from the outside. Which port is given to you is then set in<br>
+the <a href="http://docs.dotcloud.com/0.4/guides/environment/">environment.yml</a><br>
+file created by dotcloud.</p>
+<h2 id="supervisord.conf">supervisord.conf</h2>
+<p>The next file to set up is <a href="http://docs.dotcloud.com/0.4/guides/daemons/#guides-define-daemons">supervisord.conf</a><br>
+file which tells dotcloud which application to run. Here the file I use:</p>
+<pre><code>[program:cool_app]
+command = /home/dotcloud/current/script/dotcloud.sh
+</code></pre>
+<p>This simply tells Supervisor to execute the “command” once pushed to dotcloud.<br>
+The shell script then need to start your mojo app the right way. Here is the<br>
+content of “dotcloud.sh”:</p>
+<pre><code>#!/bin/sh
+export ENVIRONMENT_FILE=&quot;/home/dotcloud/environment.yml&quot;;
+export MOJO_LOG_LEVEL=&quot;info&quot;;
+
+# export environment.yml as shell variables
+$( perl -p -e&#39;s/:\s+/=/;s/^/export /&#39; $ENVIRONMENT_FILE );
+
+if [ &quot;x$DOTCLOUD_PROJECT&quot; = &quot;xcool_app_test&quot; ]; then
+    export MOJO_LOG_LEVEL=&quot;debug&quot;;
+fi
+
+exec /home/dotcloud/current/script/cool_app daemon --listen &quot;http://*:$PORT_WWW&quot;;
+</code></pre>
+<p>The trick is to fetch the “PORT_WWW” variable from the environment.yml file<br>
+and then start the “cool_app” with the correct listen port. The “if” in the<br>
+middle is a trick I use to set the debug level once pushed to my test-instance.<br>
+It is not required.</p>
+<h2 id="pushingtheapptodotcloud">Pushing the app to dotcloud</h2>
+<p>After creating the files above, your directory tree should look something like<br>
+this:</p>
+<pre><code>cool_app.conf      # app config file
+dotcloud.yml
+lib/               # your mojo app
+Makefile.PL        # build file for your mojo app
+public/            # mojo public files
+script/cool_app    # executable
+script/dotcloud.sh # executable
+supervisord.conf
+t/                 # perl unittests
+</code></pre>
+<p>lite app.</p>
+<p>Run the commands below to create and push the app:</p>
+<pre><code>dotcloud create cool_app
+dotcloud push cool_app
+</code></pre>
+<p>After this you should see something like this in the output from “dotcloud”:</p>
+<pre><code>Deployment finished. Your application is available at the following URLs
+www: http://cool_app-username.dotcloud.com/
+</code></pre>
+<p>And then you’re done!</p>
+<h2 id="otherresources">Other resources</h2>
+<p>The downside about this is that you can’t serve your static files directly<br>
+with nginx. To remove this “burden” from your mojo app, you should consider<br>
+setting up <a href="http://cloudflare.com">cloudflare</a> in front of your application.<br>
+It’s a kick ass service for both DNS and content delivery.</p>
+
+

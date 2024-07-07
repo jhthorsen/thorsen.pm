@@ -1,0 +1,53 @@
+
+  <h1>Mojo::IOLoop likes running programs asynchronously</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2022-06-12/mojo-ioloop-and-subprocesses.html">
+      12th of June, 2022
+</a>  </p>
+
+  
+<p>Want to be able to run programs and arbitrary Perl code asynchronously, while being able to read from STDOUT and STDERR, and also write to STDIN? Try out <a href="https://metacpan.org/pod/Mojo::Run3">Mojo::Run3</a>!</p>
+
+
+
+<p>When working with Mojo::IOLoop, you might find yourself in a situation where you want to run another program, but you also don’t want to block the IOLoop from doing other asynchronously tasks. So what to do? You could use <a href="https://metacpan.org/pod/Mojo::IOLoop::Subprocess">Mojo::IOLoop::Subprocess</a>. This module is part of Mojolicious core and works perfectly if you don’t care about I/O from the child process while it is running, but what to do if you want to write to STDIN, or read STDOUT and STDERR in real-time while the program is running? <a href="https://metacpan.org/pod/Mojo::Run3">Mojo::Run3</a> got your back.</p>
+
+
+
+<h2 class="wp-block-heading">Example usage</h2>
+
+
+
+<pre class="wp-block-code"><code>use Mojo::Base -strict, -signatures;
+use Mojo::Run3;
+
+my $run3 = Mojo::Run3-&gt;new;
+$run3-&gt;on(stdout =&gt; sub ($run3, $bytes) { print $bytes });
+$run3-&gt;run_p(sub { exec qw(ls -l /) })-&gt;wait;</code></pre>
+
+
+
+<p>The above is an example on how to run the command “<code>ls -l /</code>” in a subprosess, which does not block the main IOLoop, but instead reads STDOUT asynchronously through an event. Another more complex example is “<a href="https://www.redhat.com/sysadmin/ssh-automation-sshpass">sshpass</a>” implemented with about <a href="https://github.com/jhthorsen/mojo-run3/blob/main/examples/sshpass">80 lines of pure Perl code</a>. That example also uses the “pty” <a href="https://metacpan.org/pod/Mojo::Run3#driver">driver</a> instead of a plain pipe to create a <a href="https://man7.org/linux/man-pages/man4/pts.4.html">pseudoterminal</a>. This is useful for interactive programs like ssh, bash or even editors like vim.</p>
+
+
+
+<h2 class="wp-block-heading">Using Mojo::Run3 in your Mojolicious web application</h2>
+
+
+
+<p>Even though you can now run any sort of programs asynchronously in your web server now, you should consider using a job queue (such as <a href="https://docs.mojolicious.org/Minion">Minion</a>) for long running tasks. The reason is that if the client aborts the request or the webserver is restarted, then there’s no guaranty that the process will finish running, nor do you have any control that there’s not multiple instances of the same program running at the same time. But for interactive terminals over a WebSocket, or other short lived commands you can certainly use <a href="https://metacpan.org/pod/Mojo::Run3">Mojo::Run3</a>.</p>
+
+
+
+<h2 class="wp-block-heading">What about Mojo::IOLoop::ReadWriteFork?</h2>
+
+
+
+<p>I have a competing module on CPAN called <a href="https://metacpan.org/pod/Mojo::IOLoop::ReadWriteFork">Mojo::IOLoop::ReadWriteFork</a>. Unfortunately, this module was not originally designed with multiple input and output filehandles in mind, so the internals have gotten a bit messy over the years. Since I was unable to fix those issues without breaking compatibility, I decided to make a new module with fresh internals.</p>
+
+
+
+<p>Enjoy a fresh, async day!</p>
+
+

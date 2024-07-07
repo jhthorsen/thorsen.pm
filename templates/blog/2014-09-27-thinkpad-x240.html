@@ -1,0 +1,77 @@
+
+  <h1>The Lenovo Thinkpad x240 is awful, but…</h1>
+
+  <p class="blog-published">
+    <a class="blog_info_published" href="/blog/2014-09-27/thinkpad-x240.html">
+      27th of September, 2014
+</a>  </p>
+
+  <h2 id="worstx-serieslaptop">Worst x-series laptop</h2>
+<p>The thinkpad has an awful touchpad. Or even worse: it’s a clickpad! A clickpad is a touchpad without physical buttons. This means that it seems like you only have one big super-sensitive button in Linux. You do actually have two buttons, but they are at the bottom of the clickpad, and not at the top, where you would probably think the buttons are.</p>
+<p><img alt="Clickpad" decoding="async" id="clickpad" src="http://mydevelopedworld.files.wordpress.com/2013/11/clickpad-lenovo-x240.jpg"></p>
+<p>(Credits http://mydevelopedworld.wordpress.com/2013/11/30/how-to-configure-new-lenovo-x240-touchpad-on-ubuntu-13-10/)</p>
+<p>As shown on the image above, the clever hardware designers at Lenovo has decided to put the “Print Screen” button at the bottom of the keyboard. I mean… How often do you really need to print the screen?</p>
+<p>The most anoying part is probably not Lenovo’s mistake, but simple bad Linux work over SSH. Even browsing might seem broken from time to time. Why? Because the powersave feature for the wifi driver mess things up. I’m not absolutely sure what’s going on, but I’m surprised it’s not fixed after reading ~ one million bug reports about it.</p>
+<p>The battery is not great. I haven’t really tested it in Windows, but I suspect it’s Linux eating resources.</p>
+<h2 id="improveclickpadtouchpad">Improve clickpad (touchpad)</h2>
+<p>So… This isn’t perfect, but it has stopped me from accidently dropping the laptop. The <a href="http://thorsen.pm/attachments/xorg-thinkpad-x240.txt">config below</a> will make the clickpad saner. It also includes some fixes for the trackpoint and touchscreen, but it’s not really working as I hope.</p>
+<pre><code>sudo mkdir /etc/X11/xorg.conf.d;
+curl -L http://thorsen.pm/attachments/xorg-thinkpad-x240.txt \
+  | sudo tee /etc/X11/xorg.conf.d/50-thinkpad-x240.conf;
+</code></pre>
+<h2 id="improvewifi">Improve WiFi</h2>
+<p>The WLAN works pretty well on 2.4GHz, but I’ve experienced drops and disconnects while connected to 5GHz. Seeing lines like this in syslog:</p>
+<pre><code>Apr 30 16:51:32 laptop kernel: [656.876012] wlan0: deauthenticating from aa:bb:cc:dd:ee:ff by local choice (Reason: 3=DEAUTH_LEAVING)
+Apr 30 16:51:32 laptop wpa_supplicant[1302]: wlan0: CTRL-EVENT-DISCONNECTED bssid=aa:bb:cc:dd:ee:ff reason=3 locally_generated=1
+</code></pre>
+<p>I’ve tried several things to fix this. A lot of ubuntu threads suggest turning off power save, but this didn’t do the trick for me:</p>
+<pre><code>sudo iwconfig wlan0 power off
+</code></pre>
+<p>The current solution that works for me, is to load the iwlwifi driver with <code>wd_disable=0</code>:</p>
+<pre><code>sudo perl -ni.bak -e &#39;s/options iwlwifi.*/options iwlwifi wd_disable=0/ and $i++;print;print &quot;options iwlwifi wd_disable=0\n&quot; if eof and !$i&#39; /etc/modprobe.d/iwlwifi.conf
+</code></pre>
+<p>I’m usin the current iwlwifi driver in Linux 3.19.0-15-generic, but you might also want to download a newer version of the <a href="http://wireless.kernel.org/en/users/Drivers/iwlwifi?highlight=%28iwlwifi%29-7260">iwlwifi</a> driver. Example:</p>
+<pre><code># one of:
+TAR_GZ=&quot;http://wireless.kernel.org/en/users/Drivers/iwlwifi?action=AttachFile&amp;do=get&amp;target=iwlwifi-7260-ucode-22.24.8.0.tgz&quot;;
+TAR_GZ=&quot;http://wireless.kernel.org/en/users/Drivers/iwlwifi?action=AttachFile&amp;do=get&amp;target=iwlwifi-7260-ucode-25.222.9.0.tgz&quot;;
+
+UCODE_FILE=$(curl -s -L $TAR_GZ | tar vxz --wildcards --no-anchored &#39;*.ucode&#39;);
+echo &quot;Downloaded $UCODE_FILE&quot;;
+sudo mv $UCODE_FILE /lib/firmware/;
+sudo chown root.root /lib/firmware/iwlwifi-7260*;
+</code></pre>
+<h2 id="improvebatterytime">Improve battery time</h2>
+<p>I ran <a href="https://01.org/powertop">powertop</a> and extracted most of the suggested settings into <a href="http://thorsen.pm/attachments/power-d-thinkpad-x240.txt">/usr/lib/pm-utils/power.d/thinkpad-x240</a>:</p>
+<pre><code>curl -L http://thorsen.pm/attachments/power-d-thinkpad-x240.txt \
+  | sudo tee /usr/lib/pm-utils/power.d/thinkpad-x240
+sud chmod +x /usr/lib/pm-utils/power.d/thinkpad-x240
+</code></pre>
+<p>The battery isn’t as good as they suggest in the spec, but at least it got better.</p>
+<h2 id="turnofftouchscreen">Turn off touchscreen</h2>
+<p>The touchscreen is not the worst, but people just can’t keep their fingers off it, so I decided to turn it off.</p>
+<pre><code># The quick hack
+echo 0000:00:1d.0 | sudo tee /sys/bus/pci/drivers/ehci-pci/unbind;
+</code></pre>
+<p>The weird thing is that it keeps turning it self on (!) To avoid that, I’m using <a href="https://raw.githubusercontent.com/jhthorsen/app-single/master/script/single">single</a> and crontab to keep if off:</p>
+<pre><code>curl -L https://raw.githubusercontent.com/jhthorsen/app-single/master/script/single \
+  | sudo tee /usr/local/bin/single;
+sudo chmod +x /usr/local/bin/single
+sudo -i crontab -e
+</code></pre>
+<p>Add this line to root’s crontab:</p>
+<pre><code>* * * * * /usr/local/bin/single &quot;while sleep 2; do echo 0000:00:1d.0 &gt; /sys/bus/pci/drivers/ehci-pci/unbind; done&quot; 2&gt;/dev/null 1&gt;/dev/null
+</code></pre>
+<h2 id="fixbrightness">Fix brightness</h2>
+<p>You need to change grub settings to fix the brightness up/down keys. By default, it’s only possible to change between four levels, but when changing the “acpi_backlight” setting, it behaves as expected.</p>
+<p>To do this manually, you can edit the “/etc/default/grub” file, look for “GRUB_CMDLINE_LINUX_DEFAULT” and add “acpi_backlight=vendor” to the list. If you’re a bit more adventurous, you can run the line below:</p>
+<pre><code>sudo perl -pi -e&#39;s/^(GRUB_CMDLINE_LINUX_DEFAULT)=.*/$1=&quot;quiet splash acpi_backlight=vendor&quot;/&#39; /etc/default/grub
+sudo update-grub
+</code></pre>
+<h2 id="summary">Summary</h2>
+<p>Even with all the changes above, I would still not suggest buying an Lenovo Thinkpad x240 to anyone. Not even my worst enemy.</p>
+<p>If you want to run all the commands in one go, you can run this:</p>
+<pre><code>curl -L http://thorsen.pm/attachments/thinkpad-x240-all.txt | bash -
+</code></pre>
+<p>But…Didn’t your mother tell you not to pipe HTTP output into the a shell command?</p>
+
+
