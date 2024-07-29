@@ -1,0 +1,40 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<main role="document" class="document-width">
+  <form action="/moments">
+    <fieldset role="group">
+      <input type="text" name="q" value="{{ query.q | default(value="") }}" placeholder="Search for moments...">
+      <input type="submit" value="Search">
+    </fieldset>
+  </form>
+  <br>
+
+  {% for moment in moments %}
+    <article class="moment">
+      <header>
+        <time datetime="{{ moment.created_at }}">
+          {% set created_at = moment.created_at | date | split(pat="-") %}
+          {% set c1 = created_at | slice(end=1) | join(sep="-") %}
+          {% set c2 = created_at | slice(end=2) | join(sep="-") %}
+          {% set c3 = created_at | slice(end=3) | join(sep="-") %}
+          <a href="/moments?{{ qs(_=query, d=c1) }}">{{ created_at[0] }}</a>-<a href="/moments?{{ qs(_=query, d=c2) }}">{{ created_at[1] }}</a>-<a href="/moments?{{ qs(_=query, d=c3) }}">{{ created_at[2] }}</a>
+        </time>
+        {% if moment.ext_url %}
+          {% if moment.content | match(re="#order") %}
+            <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}">{{ moment.cost }}¤</a>
+          {% else %}
+            <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}">{{ moment.ext_id }}</a>
+          {% endif %}
+        {% endif %}
+      </header>
+      {% if moment.img_url | length > 1 %}
+        <a href="{{ moment.ext_url }}"><img class="illustration" src="{{ moment.img_url }}" alt="Moment illustration"></a>
+      {% else %}
+        <img class="illustration" src="/images/placehold-co-100x100.svg" alt="Moment illustration">
+      {% endif %}
+      {{ moment.content | markdown | tags_to_links(query=query) | safe }}
+    </article>
+  {% endfor %}
+</main>
+{% endblock %}
