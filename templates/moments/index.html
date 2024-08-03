@@ -10,6 +10,8 @@
   </form>
   <br>
 
+  <div id="moments_chart"></div>
+
   {% for moment in moments %}
     <article class="moment">
       <header>
@@ -22,7 +24,7 @@
         </time>
         {% if moment.ext_url %}
           {% if moment.content | match(re="#order") %}
-            <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}">{{ moment.cost }}¤</a>
+            <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}" data-currency="¤">{{ moment.cost }}¤</a>
           {% else %}
             <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}">{{ moment.ext_id }}</a>
           {% endif %}
@@ -37,4 +39,50 @@
     </article>
   {% endfor %}
 </main>
+
+<script type="module">
+  ((thorsen) => {
+    const state = {};
+
+    thorsen.renderCost = async () => {
+      const $currencies = document.querySelectorAll('a[data-currency]');
+      if ($currencies === 0) return;
+
+      const d3 = await import('https://cdn.jsdelivr.net/npm/d3@7/+esm');
+      const data = [];
+      state.max = 0;
+      for (const $currency of $currencies) {
+        const datetime = $currency.closest('.moment').querySelector('[datetime]').getAttribute('datetime');
+        const cost = parseFloat($currency.innerText.replace(/[^\d\.]/g, ''));
+        data.unshift({cost, ts: new Date(datetime)});
+        if (cost > state.max) state.max = cost;
+      }
+
+      const $chart = document.getElementById('moments_chart');
+      const [width, height, margin] = [800, 300, 50];
+
+      if (!state.y) state.y = d3.scaleLinear().range([height - margin, margin]);
+      if (!state.x) state.x = d3.scaleUtc().range([margin, width - 10]);
+      if (!state.svg) state.svg = d3.select($chart).append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+
+      const {svg, x, y} = state;
+      y.domain([0, state.max]);
+      x.domain([data[0].ts, data.slice(-1)[0].ts]);
+      // console.log({width, height, margin, svg, data});
+
+      svg.selectAll().data(data).join('rect')
+        .attr('class', 'bar')
+        .attr('x', (d) => x(d.ts))
+        .attr('y', (d) => y(d.cost))
+        .attr('height', (d) => y(0) - y(d.cost))
+        .attr('width', (width / data.length));
+
+      svg.append('g').attr('class', 'x').attr('transform', `translate(0,${height - margin})`).call(d3.axisBottom(x));
+      svg.append('g').attr('class', 'y').attr('transform', `translate(${margin},0)`).call(d3.axisLeft(y));
+      $chart.removeAttribute('hidden');
+    };
+
+    thorsen.renderCost();
+  })(window.thorsen || (window.thorsen = {}));
+</script>
 {% endblock %}

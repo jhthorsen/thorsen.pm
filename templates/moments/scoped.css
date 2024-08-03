@@ -32,3 +32,13 @@ article.moment {
     height: 100%;
   }
 }
+
+#moments_chart {
+  max-width: 100%;
+  height: auto;
+
+  .bar {
+    fill: red;
+    background: green;
+  }
+}
