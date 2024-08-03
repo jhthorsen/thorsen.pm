@@ -10,6 +10,8 @@
   </form>
   <br>
 
+  <div id="moments_chart"></div>
+
   {% for moment in moments %}
     <article class="moment">
       <header>
@@ -22,7 +24,7 @@
         </time>
         {% if moment.ext_url %}
           {% if moment.content | match(re="#order") %}
-            <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}">{{ moment.cost }}¤</a>
+            <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}" data-currency="¤">{{ moment.cost }}¤</a>
           {% else %}
             <a class="ext-url" href="{{ moment.ext_url }}" title="{{ moment.ext_id }}">{{ moment.ext_id }}</a>
           {% endif %}
@@ -37,4 +39,71 @@
     </article>
   {% endfor %}
 </main>
+
+<script type="module">
+  ((thorsen) => {
+    const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+
+    const datefromElement = ($el) => $el.closest('.moment').querySelector('[datetime]').getAttribute('datetime');
+    const xDomainFromMarkup = ($currencies) => {
+      const $last = $currencies.item($currencies.length - 1) || $currencies[0];
+      return [$last, $currencies[0]].map($el => new Date(datefromElement($el)));
+    };
+
+    thorsen.renderCost = async () => {
+      const $currencies = document.querySelectorAll('a[data-currency]');
+      if ($currencies === 0) return;
+
+      const xDomain = xDomainFromMarkup($currencies);
+      const yDomain = [0, 0];
+
+      const groupBy
+        = (xDomain[1] - xDomain[0]) / MILLISECONDS_PER_DAY > 90 ? ['setDate', 'setHours', 'setMinutes', 'setSeconds']
+        : (xDomain[1] - xDomain[0]) / MILLISECONDS_PER_DAY > 14 ? ['setHours', 'setMinutes', 'setSeconds']
+        :                                                         ['setMinutes', 'setSeconds'];
+
+      let data = [];
+      for (const $currency of $currencies) {
+        const cost = parseFloat($currency.innerText.replace(/[^\d\.]/g, ''));
+        const ts = new Date(datefromElement($currency));
+        groupBy.forEach(m => ts[m](0));
+
+        if (data.length && data[0].ts.toISOString() === ts.toISOString()) {
+          data[0].cost += cost;
+        }
+        else {
+          data.unshift({cost, ts});
+        }
+
+        if (data[0].cost > yDomain[1]) yDomain[1] = data[0].cost;
+      }
+
+      const [width, height, margin] = [800, 300, 50];
+      const barWidth = Math.min(parseInt((width / data.length), 10), 40);
+
+      const d3 = await import('https://cdn.jsdelivr.net/npm/d3@7/+esm');
+      const $chart = document.getElementById('moments_chart');
+      const svg = d3.select($chart).append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+
+      const xPadding = groupBy[0] === 'setDate' ? ['setMonth', 'getMonth'] : ['setDate', 'getdate'];
+      xDomain[0][xPadding[0]](xDomain[0][xPadding[1]]() - 1);
+      xDomain[1][xPadding[0]](xDomain[1][xPadding[1]]() + 1);
+      const x = d3.scaleUtc().domain(xDomain).range([margin, width - margin]);
+      const y = d3.scaleLinear().domain(yDomain).range([height - margin, margin]);
+
+      svg.selectAll().data(data).join('rect')
+        .attr('class', 'bar')
+        .attr('x', (d) => x(d.ts) - (barWidth / 2))
+        .attr('y', (d) => y(parseInt(d.cost, 10)))
+        .attr('height', (d) => y(0) - y(d.cost))
+        .attr('width', barWidth);
+
+      svg.append('g').attr('class', 'x').attr('transform', `translate(0,${height - margin})`).call(d3.axisBottom(x));
+      svg.append('g').attr('class', 'y').attr('transform', `translate(${margin},0)`).call(d3.axisLeft(y));
+      $chart.removeAttribute('hidden');
+    };
+
+    thorsen.renderCost();
+  })(window.thorsen || (window.thorsen = {}));
+</script>
 {% endblock %}
